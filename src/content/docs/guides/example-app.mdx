@@ -16,7 +16,7 @@ A simple Kanban board with columns (backlog, in-progress, done) that supports cr
 
 The domain declares the testing vocabulary — what the task board does, independent of how:
 
-<Tabs>
+<Tabs syncKey="lang">
   <TabItem label="TypeScript">
     ```typescript
     export const taskBoard = defineDomain({
@@ -129,7 +129,7 @@ The domain declares the testing vocabulary — what the task board does, indepen
 
 Tests the `Board` class directly. Sub-millisecond execution.
 
-<Tabs>
+<Tabs syncKey="lang">
   <TabItem label="TypeScript">
     ```typescript
     const unitAdapter = adapt(taskBoard, {
@@ -224,7 +224,7 @@ Tests the `Board` class directly. Sub-millisecond execution.
 
 Tests the Express API via fetch. Spins up a server per test on a random port.
 
-<Tabs>
+<Tabs syncKey="lang">
   <TabItem label="TypeScript">
     ```typescript
     const httpAdapter = adapt(taskBoard, {
@@ -314,7 +314,7 @@ Tests the Express API via fetch. Spins up a server per test on a random port.
 
 Tests the React UI in a headless Chromium browser. Serves the built frontend.
 
-<Tabs>
+<Tabs syncKey="lang">
   <TabItem label="TypeScript">
     ```typescript
     const playwrightAdapter = adapt(taskBoard, {
@@ -430,7 +430,7 @@ Tests the React UI in a headless Chromium browser. Serves the built frontend.
 
 The test file is protocol-agnostic. Every test runs against all three adapters automatically:
 
-<Tabs>
+<Tabs syncKey="lang">
   <TabItem label="TypeScript">
     ```typescript
     const { test } = suite(taskBoard)

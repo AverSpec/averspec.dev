@@ -44,7 +44,7 @@ Assertions could be expressed as query + expect, but they earn their place becau
 
 Here's what a domain definition looks like:
 
-<Tabs>
+<Tabs syncKey="lang">
   <TabItem label="TypeScript">
     ```typescript
     import { defineDomain, action, query, assertion } from '@averspec/core'
@@ -160,7 +160,7 @@ You can write custom protocols for any interaction mode — WebSocket, gRPC, CLI
 
 `withFixture(protocol, { before?, after? })` wraps a protocol with setup/teardown hooks — useful when an adapter needs external infrastructure (a database, a server process) that sits outside the protocol's own context:
 
-<Tabs>
+<Tabs syncKey="lang">
   <TabItem label="TypeScript">
     ```typescript
     import { withFixture } from '@averspec/core'
@@ -244,7 +244,7 @@ You can filter adapters at runtime with `AVER_ADAPTER=unit` to run only the fast
 
 When a test scenario spans multiple bounded contexts, `suite()` accepts a named config object instead of a single domain. Each key maps to a `[domain, adapter]` tuple, and the test callback receives a context with a namespace per key:
 
-<Tabs>
+<Tabs syncKey="lang">
   <TabItem label="TypeScript">
     ```typescript
     const { test } = suite({
@@ -337,7 +337,7 @@ Each domain gets its own protocol lifecycle. The shared `trace()` function on th
 
 Domains can be extended with additional vocabulary for protocol-specific concerns:
 
-<Tabs>
+<Tabs syncKey="lang">
   <TabItem label="TypeScript">
     ```typescript
     const taskBoardUI = taskBoard.extend('task-board-ui', {

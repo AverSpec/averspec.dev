@@ -6,7 +6,7 @@ import { Tabs, TabItem } from '@astrojs/starlight/components';
 
 ## Install
 
-<Tabs>
+<Tabs syncKey="lang">
   <TabItem label="TypeScript">
     ```bash
     npm install --save-dev @averspec/core vitest
@@ -48,7 +48,7 @@ import { Tabs, TabItem } from '@astrojs/starlight/components';
 
 ## The 30-second version
 
-<Tabs>
+<Tabs syncKey="lang">
   <TabItem label="TypeScript">
     ```bash
     npx aver init
@@ -136,7 +136,7 @@ Start with the [tutorial](/tutorial/) to see the pattern, then apply it to your 
 
 Scaffold a project:
 
-<Tabs>
+<Tabs syncKey="lang">
   <TabItem label="TypeScript">
     ```bash
     npx aver init
@@ -217,7 +217,7 @@ aver.config.*     # Wiring — registers adapters
 
 ## Configure your test runner
 
-<Tabs>
+<Tabs syncKey="lang">
   <TabItem label="TypeScript">
     Create or update `vitest.config.ts` to load the Aver config:
 

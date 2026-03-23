@@ -49,7 +49,7 @@ test('create task', async ({ page }) => {
 
 One test, every level:
 
-<Tabs>
+<Tabs syncKey="lang">
   <TabItem label="TypeScript">
     ```typescript
     const { test } = suite(taskBoard)
@@ -109,11 +109,50 @@ One test, every level:
   </TabItem>
 </Tabs>
 
-```
- ✓ create a task in backlog [unit]          3ms
- ✓ create a task in backlog [http]         48ms
- ✓ create a task in backlog [playwright]  890ms
-```
+<Tabs syncKey="lang">
+  <TabItem label="TypeScript">
+    ```
+     ✓ create a task in backlog [unit]          3ms
+     ✓ create a task in backlog [http]         48ms
+     ✓ create a task in backlog [playwright]  890ms
+    ```
+  </TabItem>
+  <TabItem label="Python">
+    ```
+    tests/test_task_board.py::test_create_task_in_backlog[unit] PASSED
+    tests/test_task_board.py::test_create_task_in_backlog[http] PASSED
+    tests/test_task_board.py::test_create_task_in_backlog[playwright] PASSED
+    ```
+  </TabItem>
+  <TabItem label="Ruby">
+    ```
+    Task Board [unit] creates a task in backlog
+    Task Board [http] creates a task in backlog
+    Task Board [playwright] creates a task in backlog
+    ```
+  </TabItem>
+  <TabItem label="Go">
+    ```
+    === RUN TestCreateTask/create_task_[unit]
+    === RUN TestCreateTask/create_task_[http]
+    === RUN TestCreateTask/create_task_[playwright]
+    ```
+  </TabItem>
+  <TabItem label="Rust">
+    ```
+    test create_task ... ok
+    test create_task_http ... ok
+    test create_task_playwright ... ok
+    ```
+  </TabItem>
+  <TabItem label="Kotlin">
+    ```
+    ✓ create task in backlog [unit]
+    ✓ create task in backlog [http]
+    ✓ create task in backlog [playwright]
+    ```
+  </TabItem>
+</Tabs>
 
 Working on business logic? `aver run --adapter unit`. Touching the API layer? `--adapter http`. Need full confidence before deploy? `--adapter playwright`. Same test, right feedback loop for the layer you're in. How fast the unit adapter runs depends on your design — nullables and dependency injection eliminate IO entirely; a real database keeps fidelity at the cost of speed. Either way, it's a fraction of the browser.
 
@@ -130,7 +169,7 @@ Working on business logic? `aver run --adapter unit`. Touching the API layer? `-
 
 ## Quick start
 
-<Tabs>
+<Tabs syncKey="lang">
   <TabItem label="TypeScript">
     ```bash
     npm install --save-dev @averspec/core vitest

@@ -14,7 +14,7 @@ You need a domain and at least two adapters. This guide uses a task board exampl
 
 ### Domain
 
-<Tabs>
+<Tabs syncKey="lang">
   <TabItem label="TypeScript">
     ```typescript
     // domains/task-board.ts
@@ -98,7 +98,7 @@ You need a domain and at least two adapters. This guide uses a task board exampl
 
 Tests against your code's public interfaces directly. Fast — how fast depends on your design choices (see [Making unit adapters fast](#making-unit-adapters-fast) below).
 
-<Tabs>
+<Tabs syncKey="lang">
   <TabItem label="TypeScript">
     ```typescript
     // adapters/task-board.unit.ts
@@ -221,7 +221,7 @@ Tests against your code's public interfaces directly. Fast — how fast depends 
 
 Tests against a REST API. Faster than the browser, slower than direct interfaces.
 
-<Tabs>
+<Tabs syncKey="lang">
   <TabItem label="TypeScript">
     ```typescript
     // adapters/task-board.http.ts
@@ -350,7 +350,7 @@ Tests against a REST API. Faster than the browser, slower than direct interfaces
 
 Tests against a browser UI. Slowest adapter, highest confidence.
 
-<Tabs>
+<Tabs syncKey="lang">
   <TabItem label="TypeScript">
     ```typescript
     // adapters/task-board.playwright.ts
@@ -523,7 +523,7 @@ export default defineConfig({
 })
 ```
 
-<Tabs>
+<Tabs syncKey="lang">
   <TabItem label="TypeScript">
     ```typescript
     // tests/task-board.spec.ts

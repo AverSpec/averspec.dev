@@ -59,7 +59,7 @@ Before changing anything, capture the current behavior as a safety net.
 npm install --save-dev @averspec/core @averspec/approvals vitest
 ```
 
-<Tabs>
+<Tabs syncKey="lang">
   <TabItem label="TypeScript">
     ```typescript
     // tests/invoice-characterization.spec.ts
@@ -217,7 +217,7 @@ You'll get the names wrong. That's expected. Maybe you start with `calculateTota
 
 Look at what the characterization tests revealed. The function accumulates line items, applies discount rules, and computes a taxed total. Name these in domain language:
 
-<Tabs>
+<Tabs syncKey="lang">
   <TabItem label="TypeScript">
     ```typescript
     // domains/pricing.ts
@@ -322,7 +322,7 @@ The vocabulary says nothing about formatting, hardcoded tiers, or tax rates. It 
 
 Tests use domain language only. No implementation details leak in:
 
-<Tabs>
+<Tabs syncKey="lang">
   <TabItem label="TypeScript">
     ```typescript
     // tests/pricing.spec.ts
@@ -466,7 +466,7 @@ These tests won't pass yet — there's no adapter.
 
 An adapter binds domain vocabulary to a real implementation. Start with the `unit` protocol, which calls your code's public interfaces directly:
 
-<Tabs>
+<Tabs syncKey="lang">
   <TabItem label="TypeScript">
     ```typescript
     // adapters/pricing.unit.ts

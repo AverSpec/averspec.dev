@@ -56,7 +56,7 @@ export default defineConfig({
 
 Before writing any implementation, name the behaviors. A task board lets you create tasks, move them between statuses, and verify where they are. Express that as a domain:
 
-<Tabs>
+<Tabs syncKey="lang">
   <TabItem label="TypeScript">
     ```typescript
     // domains/task-board.ts
@@ -152,7 +152,7 @@ This is the stable center. Tests and adapters will come and go; the domain vocab
 
 Tests use domain language only. They don't know whether the task board is an in-memory object, a REST API, or a React app:
 
-<Tabs>
+<Tabs syncKey="lang">
   <TabItem label="TypeScript">
     ```typescript
     // tests/task-board.spec.ts
@@ -312,7 +312,7 @@ These tests won't pass yet. There's no adapter.
 
 An adapter binds domain vocabulary to a real implementation. Start with the `unit` protocol, which calls your code's public interfaces directly:
 
-<Tabs>
+<Tabs syncKey="lang">
   <TabItem label="TypeScript">
     ```typescript
     // adapters/task-board.unit.ts

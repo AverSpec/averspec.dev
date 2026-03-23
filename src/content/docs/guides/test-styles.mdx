@@ -11,7 +11,7 @@ Choose based on who reads the test and what it's expressing.
 
 **given/when/then** — aliases that add narrative structure:
 
-<Tabs>
+<Tabs syncKey="lang">
   <TabItem label="TypeScript">
     ```typescript
     test('quantity discount kicks in at 10 items', async ({ given, then }) => {
@@ -70,7 +70,7 @@ Choose based on who reads the test and what it's expressing.
 
 **act/assert** — direct names without narrative framing:
 
-<Tabs>
+<Tabs syncKey="lang">
   <TabItem label="TypeScript">
     ```typescript
     test('move task through workflow', async ({ act, assert }) => {
@@ -137,7 +137,7 @@ for `assert`. You can mix them freely within a test.
 - **Living documentation** — the test name and step labels together tell a story
 - **Onboarding** — clearer for developers new to the domain
 
-<Tabs>
+<Tabs syncKey="lang">
   <TabItem label="TypeScript">
     ```typescript
     test('new member gets welcome discount on first order', async ({ given, when, then }) => {
@@ -200,7 +200,7 @@ for `assert`. You can mix them freely within a test.
 - **Developer-facing tests** where narrative framing adds no signal
 - **Query-heavy tests** that don't map to a given/when/then arc
 
-<Tabs>
+<Tabs syncKey="lang">
   <TabItem label="TypeScript">
     ```typescript
     test('assign task to team member', async ({ act, assert }) => {
@@ -262,7 +262,7 @@ for `assert`. You can mix them freely within a test.
 Because `given`/`when` are just `act` and `then` is just `assert`, mixing is valid when
 it improves clarity:
 
-<Tabs>
+<Tabs syncKey="lang">
   <TabItem label="TypeScript">
     ```typescript
     test('checkout flow', async ({ given, when, assert }) => {
