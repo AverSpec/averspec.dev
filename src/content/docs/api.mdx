@@ -1,0 +1,1533 @@
+---
+title: "API Reference"
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+All public exports from the `@averspec/core` package.
+
+## Domain Definition
+
+### `defineDomain(config)`
+
+Creates a domain with a named vocabulary.
+
+<Tabs syncKey="lang">
+  <TabItem label="TypeScript">
+    ```typescript
+    import { defineDomain, action, query, assertion } from '@averspec/core'
+
+    const cart = defineDomain({
+      name: 'shopping-cart',
+      actions: {
+        addItem: action<{ name: string; qty: number }>(),
+      },
+      queries: {
+        cartTotal: query<number>(),
+      },
+      assertions: {
+        hasItems: assertion<{ count: number }>(),
+      },
+    })
+    ```
+  </TabItem>
+  <TabItem label="Python">
+    ```python
+    from averspec import domain, action, query, assertion
+    from dataclasses import dataclass
+
+    @dataclass
+    class AddItemPayload:
+        name: str
+        qty: int
+
+    @domain("shopping-cart")
+    class Cart:
+        add_item = action(AddItemPayload)
+        cart_total = query(None, int)
+        has_items = assertion(int)
+    ```
+  </TabItem>
+  <TabItem label="Ruby">
+    ```ruby
+    require "averspec"
+
+    class Cart < Aver::Domain
+      domain_name "shopping-cart"
+
+      action :add_item
+      query :cart_total
+      assertion :has_items
+    end
+    ```
+  </TabItem>
+  <TabItem label="Go">
+    ```go
+    import aver "github.com/averspec/aver-go"
+
+    type CartDomain struct {
+        AddItem  aver.Action[AddItemPayload]
+        CartTotal aver.Query[struct{}, int]
+        HasItems aver.Assertion[HasItemsPayload]
+    }
+
+    var Cart = aver.NewDomain[CartDomain]("shopping-cart")
+    ```
+  </TabItem>
+  <TabItem label="Rust">
+    ```rust
+    use averspec::{aver_domain, Domain, Action, Query, Assertion};
+
+    aver_domain! {
+        struct CartMarkers {
+            add_item: Action<AddItemPayload>,
+            cart_total: Query<(), i32>,
+            has_items: Assertion<HasItemsPayload>,
+        }
+    }
+
+    let cart = Domain::new("shopping-cart", CartMarkers::new());
+    ```
+  </TabItem>
+  <TabItem label="Kotlin">
+    ```kotlin
+    import dev.averspec.*
+
+    object CartDomain {
+        val d = domain("shopping-cart") {
+            action<AddItemPayload>("add item")
+            query<Unit, Int>("cart total")
+            assertion<HasItemsPayload>("has items")
+        }
+
+        val addItem get() = d.markers["add item"] as ActionMarker<AddItemPayload>
+        val cartTotal get() = d.markers["cart total"] as QueryMarker<Unit, Int>
+        val hasItems get() = d.markers["has items"] as AssertionMarker<HasItemsPayload>
+    }
+    ```
+  </TabItem>
+</Tabs>
+
+**Returns:** `Domain` — a domain object with vocabulary metadata and an `extend()` method.
+
+### `action<Payload>(opts?)`
+
+Creates an action marker. Actions perform side effects and return void.
+
+<Tabs syncKey="lang">
+  <TabItem label="TypeScript">
+    ```typescript
+    addItem: action<{ name: string }>()  // typed payload
+    checkout: action()                    // no payload (void)
+    addItem: action<{ name: string }>({  // with telemetry declaration
+      telemetry: (p) => ({ span: 'cart.add-item', attributes: { 'item.name': p.name } }),
+    })
+    ```
+  </TabItem>
+  <TabItem label="Python">
+    ```python
+    add_item = action(AddItemPayload)     # typed payload
+    checkout = action()                    # no payload
+    add_item = action(AddItemPayload,      # with telemetry
+        telemetry={"span": "cart.add-item"})
+    ```
+  </TabItem>
+  <TabItem label="Ruby">
+    ```ruby
+    action :add_item                       # untyped (Ruby is dynamic)
+    action :checkout
+    action :add_item, telemetry: { span: "cart.add-item" }
+    ```
+  </TabItem>
+  <TabItem label="Go">
+    ```go
+    AddItem  aver.Action[AddItemPayload]   // typed payload via generics
+    Checkout aver.Action[struct{}]          // no payload
+    ```
+  </TabItem>
+  <TabItem label="Rust">
+    ```rust
+    add_item: Action<AddItemPayload>,      // typed payload
+    checkout: Action<()>,                  // no payload
+    ```
+  </TabItem>
+  <TabItem label="Kotlin">
+    ```kotlin
+    action<AddItemPayload>("add item")     // typed payload
+    action<Unit>("checkout")               // no payload
+    ```
+  </TabItem>
+</Tabs>
+
+**Options:** `MarkerOptions<P>` — optional object with a `telemetry: TelemetryDeclaration<P>` property.
+
+### `query<Return>(opts?)` / `query<Payload, Return>(opts?)`
+
+Creates a query marker. Queries read data and return a typed result. Two overloads:
+
+<Tabs syncKey="lang">
+  <TabItem label="TypeScript">
+    ```typescript
+    cartTotal: query<number>()                          // no input, returns number
+    tasksByStatus: query<{ status: string }, Task[]>()  // input + return type
+    cartTotal: query<number>({                          // with telemetry
+      telemetry: { span: 'cart.total' },
+    })
+    ```
+  </TabItem>
+  <TabItem label="Python">
+    ```python
+    cart_total = query(None, int)                        # no input, returns int
+    tasks_by_status = query(str, list)                   # input + return type
+    ```
+  </TabItem>
+  <TabItem label="Ruby">
+    ```ruby
+    query :cart_total                                    # return type checked at runtime
+    query :tasks_by_status
+    ```
+  </TabItem>
+  <TabItem label="Go">
+    ```go
+    CartTotal    aver.Query[struct{}, int]               // no input, returns int
+    TasksByStatus aver.Query[string, []Task]             // input + return type
+    ```
+  </TabItem>
+  <TabItem label="Rust">
+    ```rust
+    cart_total: Query<(), i32>,                          // no input, returns i32
+    tasks_by_status: Query<String, Vec<Task>>,           // input + return type
+    ```
+  </TabItem>
+  <TabItem label="Kotlin">
+    ```kotlin
+    query<Unit, Int>("cart total")                       // no input, returns Int
+    query<String, List<Task>>("tasks by status")         // input + return type
+    ```
+  </TabItem>
+</Tabs>
+
+### `assertion<Payload>(opts?)`
+
+Creates an assertion marker. Assertions verify expectations and throw on failure.
+
+<Tabs syncKey="lang">
+  <TabItem label="TypeScript">
+    ```typescript
+    hasItems: assertion<{ count: number }>()  // typed payload
+    isEmpty: assertion()                       // no payload
+    ```
+  </TabItem>
+  <TabItem label="Python">
+    ```python
+    has_items = assertion(int)                 # typed payload
+    is_empty = assertion()                     # no payload
+    ```
+  </TabItem>
+  <TabItem label="Ruby">
+    ```ruby
+    assertion :has_items
+    assertion :is_empty
+    ```
+  </TabItem>
+  <TabItem label="Go">
+    ```go
+    HasItems aver.Assertion[HasItemsPayload]
+    IsEmpty  aver.Assertion[struct{}]
+    ```
+  </TabItem>
+  <TabItem label="Rust">
+    ```rust
+    has_items: Assertion<HasItemsPayload>,
+    is_empty: Assertion<()>,
+    ```
+  </TabItem>
+  <TabItem label="Kotlin">
+    ```kotlin
+    assertion<Int>("has items")
+    assertion<Unit>("is empty")
+    ```
+  </TabItem>
+</Tabs>
+
+### `domain.extend(name, config)`
+
+Extends a domain with additional vocabulary. The extended domain inherits all items from the parent. The name is passed as the first argument.
+
+<Tabs syncKey="lang">
+  <TabItem label="TypeScript">
+    ```typescript
+    const cartUI = cart.extend('shopping-cart-ui', {
+      assertions: {
+        showsSpinner: assertion(),
+      },
+    })
+    ```
+  </TabItem>
+  <TabItem label="Python">
+    ```python
+    @domain("shopping-cart-ui", extends=Cart)
+    class CartUI:
+        shows_spinner = assertion()
+    ```
+  </TabItem>
+  <TabItem label="Ruby">
+    ```ruby
+    class CartUI < Cart
+      domain_name "shopping-cart-ui"
+      assertion :shows_spinner
+    end
+    ```
+  </TabItem>
+  <TabItem label="Go">
+    ```go
+    type CartUIDomain struct {
+        CartDomain
+        ShowsSpinner aver.Assertion[struct{}]
+    }
+
+    var CartUI = aver.Extend(Cart, aver.NewDomain[CartUIDomain]("shopping-cart-ui"))
+    ```
+  </TabItem>
+  <TabItem label="Rust">
+    ```rust
+    // Rust domains compose by embedding marker structs
+    struct CartUIMarkers {
+        cart: CartMarkers,
+        shows_spinner: Assertion<()>,
+    }
+    ```
+  </TabItem>
+  <TabItem label="Kotlin">
+    ```kotlin
+    val cartUI = domain("shopping-cart-ui", parent = CartDomain.d) {
+        assertion<Unit>("shows spinner")
+    }
+    ```
+  </TabItem>
+</Tabs>
+
+---
+
+## Adapters
+
+### `adapt(domain, config)`
+
+Creates an adapter binding a domain to a protocol with handler implementations.
+
+<Tabs syncKey="lang">
+  <TabItem label="TypeScript">
+    ```typescript
+    import { adapt, unit } from '@averspec/core'
+
+    const adapter = adapt(cart, {
+      protocol: unit(() => []),
+      actions: {
+        addItem: async (ctx, payload) => { /* ... */ },
+      },
+      queries: {
+        cartTotal: async (ctx) => { /* ... */ },
+      },
+      assertions: {
+        hasItems: async (ctx, payload) => { /* ... */ },
+      },
+    })
+    ```
+
+    TypeScript enforces that every action, query, and assertion declared in the domain is provided. Missing handlers are compile errors.
+  </TabItem>
+  <TabItem label="Python">
+    ```python
+    from averspec import implement, unit
+
+    adapter = implement(Cart, protocol=unit(lambda: []))
+
+    @adapter.handle(Cart.add_item)
+    def add_item(ctx, p):
+        ctx.append({"name": p.name, "qty": p.qty})
+
+    @adapter.handle(Cart.cart_total)
+    def cart_total(ctx):
+        return sum(item["qty"] for item in ctx)
+
+    @adapter.handle(Cart.has_items)
+    def has_items(ctx, count):
+        assert len(ctx) == count
+    ```
+  </TabItem>
+  <TabItem label="Ruby">
+    ```ruby
+    class CartUnitAdapter < Aver::Adapter
+      domain Cart
+      protocol :unit, -> { [] }
+
+      def add_item(ctx, name:, qty:)
+        ctx << { name: name, qty: qty }
+      end
+
+      def cart_total(ctx)
+        ctx.sum { |i| i[:qty] }
+      end
+
+      def has_items(ctx, count:)
+        raise "Expected #{count} items" unless ctx.size == count
+      end
+    end
+    ```
+  </TabItem>
+  <TabItem label="Go">
+    ```go
+    import (
+        aver "github.com/averspec/aver-go"
+        "github.com/averspec/aver-go/protocols/unit"
+    )
+
+    var UnitAdapter = aver.Implement(
+        Cart,
+        unit.New(func() *CartCtx { return &CartCtx{} }),
+        func(h *aver.HandlerBuilder[CartDomain, *CartCtx]) {
+            aver.OnActionFn(h, Cart.AddItem, func(ctx *CartCtx, p AddItemPayload) {
+                ctx.Items = append(ctx.Items, p)
+            })
+            aver.OnQuery(h, Cart.CartTotal, func(ctx *CartCtx, _ struct{}) (int, error) {
+                return len(ctx.Items), nil
+            })
+            aver.OnAssertion(h, Cart.HasItems, func(ctx *CartCtx, p HasItemsPayload) error {
+                if len(ctx.Items) != p.Count { return fmt.Errorf("expected %d", p.Count) }
+                return nil
+            })
+        },
+    )
+    ```
+  </TabItem>
+  <TabItem label="Rust">
+    ```rust
+    let m = cart.markers();
+    let mut builder = AdapterBuilder::<CartMarkers, Vec<Item>>::new();
+
+    builder.on_action(&m.add_item, |ctx, p| {
+        ctx.push(Item { name: p.name.clone(), qty: p.qty });
+    });
+    builder.on_query(&m.cart_total, |ctx, _| ctx.len());
+    builder.on_assertion(&m.has_items, |ctx, p| {
+        if ctx.len() == p.count { Ok(()) }
+        else { Err(format!("expected {} items", p.count)) }
+    });
+
+    let adapter = builder.build();
+    ```
+  </TabItem>
+  <TabItem label="Kotlin">
+    ```kotlin
+    val unitAdapter = implement<CartCtx>(CartDomain.d, UnitProtocol { CartCtx() }) {
+        onAction(CartDomain.addItem) { ctx, payload ->
+            ctx.items.add(payload)
+        }
+        onQuery(CartDomain.cartTotal) { ctx, _ ->
+            ctx.items.size
+        }
+        onAssertion(CartDomain.hasItems) { ctx, count ->
+            if (ctx.items.size != count)
+                throw AssertionError("Expected $count items")
+        }
+    }
+    ```
+  </TabItem>
+</Tabs>
+
+**Returns:** `Adapter` — an adapter object with domain, protocol, and handler references.
+
+---
+
+## Protocols
+
+### `unit(factory)`
+
+Built-in protocol for testing against your code's public interfaces directly. Zero dependencies.
+
+<Tabs syncKey="lang">
+  <TabItem label="TypeScript">
+    ```typescript
+    import { unit } from '@averspec/core'
+
+    protocol: unit(() => new Cart())         // object context
+    protocol: unit(() => ({ db: new DB() })) // compound context
+    protocol: unit<Cart[]>(() => [])         // typed context
+    ```
+
+    The factory runs on each test setup, creating a fresh context. Teardown is a no-op.
+  </TabItem>
+  <TabItem label="Python">
+    ```python
+    from averspec import unit
+
+    protocol = unit(lambda: Cart())           # object context
+    protocol = unit(lambda: {"db": DB()})     # compound context
+    protocol = unit(lambda: [])               # list context
+    ```
+  </TabItem>
+  <TabItem label="Ruby">
+    ```ruby
+    protocol :unit, -> { Cart.new }           # object context
+    protocol :unit, -> { { db: DB.new } }     # compound context
+    protocol :unit, -> { [] }                 # array context
+    ```
+  </TabItem>
+  <TabItem label="Go">
+    ```go
+    import "github.com/averspec/aver-go/protocols/unit"
+
+    unit.New(func() *Cart { return NewCart() })
+    ```
+  </TabItem>
+  <TabItem label="Rust">
+    ```rust
+    use averspec::UnitProtocol;
+
+    let protocol = UnitProtocol::new("unit", || Vec::<Item>::new());
+    ```
+  </TabItem>
+  <TabItem label="Kotlin">
+    ```kotlin
+    import dev.averspec.UnitProtocol
+
+    val protocol = UnitProtocol { Cart() }
+    ```
+  </TabItem>
+</Tabs>
+
+### `http(options)` <small>from `@averspec/protocol-http`</small>
+
+HTTP protocol providing a fetch-based client.
+
+<Tabs syncKey="lang">
+  <TabItem label="TypeScript">
+    ```typescript
+    import { http } from '@averspec/protocol-http'
+
+    protocol: http({ baseUrl: 'http://localhost:3000' })
+    ```
+  </TabItem>
+  <TabItem label="Python">
+    ```python
+    from averspec import http
+
+    protocol = http(base_url="http://localhost:3000")
+    ```
+  </TabItem>
+  <TabItem label="Ruby">
+    ```ruby
+    require "averspec/protocol_http"
+
+    protocol :http, base_url: "http://localhost:3000"
+    ```
+  </TabItem>
+  <TabItem label="Go">
+    ```go
+    import avhttp "github.com/averspec/aver-go/protocols/http"
+
+    avhttp.New("http://localhost:3000")
+    ```
+  </TabItem>
+  <TabItem label="Rust">
+    ```rust
+    use averspec::http_protocol::HttpProtocol;
+
+    let protocol = HttpProtocol::new("http://localhost:3000");
+    ```
+  </TabItem>
+  <TabItem label="Kotlin">
+    ```kotlin
+    import dev.averspec.HttpProtocol
+
+    val protocol = HttpProtocol("http://localhost:3000")
+    ```
+  </TabItem>
+</Tabs>
+
+Context provides `get`, `post`, `put`, `patch`, `delete` methods.
+
+### `playwright(options?)` <small>from `@averspec/protocol-playwright`</small>
+
+Playwright protocol providing a browser page.
+
+```typescript
+import { playwright } from '@averspec/protocol-playwright'
+
+protocol: playwright()
+```
+
+Context is a Playwright `Page`. Browser is launched once and reused; a fresh page is created per test.
+
+### `withFixture(protocol, fixture)`
+
+Wraps a protocol with before/after hooks.
+
+<Tabs syncKey="lang">
+  <TabItem label="TypeScript">
+    ```typescript
+    import { withFixture } from '@averspec/core'
+
+    const wrapped = withFixture(myProtocol, {
+      before: async () => { /* runs before setup */ },
+      after: async () => { /* runs after teardown */ },
+    })
+    ```
+  </TabItem>
+  <TabItem label="Python">
+    ```python
+    from averspec import with_fixture
+
+    wrapped = with_fixture(
+        my_protocol,
+        before=lambda: seed_db(),
+        after_setup=lambda ctx: navigate(ctx),
+        after=lambda: cleanup(),
+    )
+    ```
+  </TabItem>
+  <TabItem label="Ruby">
+    ```ruby
+    wrapped = Aver.with_fixture(
+      my_protocol,
+      before: -> { seed_db },
+      after_setup: ->(ctx) { navigate(ctx) },
+      after: -> { cleanup },
+    )
+    ```
+  </TabItem>
+  <TabItem label="Go">
+    ```go
+    aver.WithFixture(t, aver.FixtureOptions[*Ctx]{
+        Before:     func(t *testing.T) *Ctx { return setup() },
+        AfterSetup: func(t *testing.T, ctx *Ctx) { navigate(ctx) },
+        After:      func(t *testing.T, ctx *Ctx) { cleanup(ctx) },
+    }, func(t *testing.T, ctx *Ctx) {
+        // test body
+    })
+    ```
+  </TabItem>
+  <TabItem label="Rust">
+    ```rust
+    use averspec::fixture::WithFixture;
+
+    let wrapped = WithFixture::new(protocol)
+        .before_each(|ctx| { seed_db(ctx); })
+        .after_setup(|ctx| { navigate(ctx); })
+        .after_each(|ctx| { cleanup(ctx); });
+    ```
+  </TabItem>
+  <TabItem label="Kotlin">
+    ```kotlin
+    // Fixtures are configured via JUnit @BeforeEach / @AfterEach
+    // or through protocol lifecycle hooks
+    ```
+  </TabItem>
+</Tabs>
+
+---
+
+## Suite
+
+### `suite(domain, adapter?)`
+
+Creates a test suite for a domain.
+
+<Tabs syncKey="lang">
+  <TabItem label="TypeScript">
+    ```typescript
+    import { suite } from '@averspec/core'
+
+    // Multi-adapter: resolves from registry
+    const { test } = suite(cart)
+
+    // Single adapter: passed directly
+    const { test } = suite(cart, unitAdapter)
+    ```
+  </TabItem>
+  <TabItem label="Python">
+    ```python
+    from averspec import suite
+
+    s = suite(Cart)
+    ```
+  </TabItem>
+  <TabItem label="Ruby">
+    ```ruby
+    require "averspec/rspec"
+
+    Aver.register CartUnitAdapter
+
+    RSpec.describe Cart do
+      # ctx is available inside each test
+    end
+    ```
+  </TabItem>
+  <TabItem label="Go">
+    ```go
+    allSuites := aver.Suites(Cart, UnitAdapter, HTTPAdapter)
+    ```
+  </TabItem>
+  <TabItem label="Rust">
+    ```rust
+    let suite = Suite::new("Cart", markers, adapter, Box::new(protocol));
+    ```
+  </TabItem>
+  <TabItem label="Kotlin">
+    ```kotlin
+    val s = suite(CartDomain.d, unitAdapter)
+    ```
+  </TabItem>
+</Tabs>
+
+**Returns:** `SuiteReturn` with the following:
+
+| Property | Type | Description |
+|:---------|:-----|:------------|
+| `test` | `(name, fn) => void` | Wraps Vitest's `test()` with domain proxies |
+| `it` | `(name, fn) => void` | Alias for `test` |
+| `describe` | `(name, fn) => void` | Wraps Vitest's `describe()` for grouping |
+| `context` | `(name, fn) => void` | Alias for `describe` |
+| `act` | `ActProxy` | Programmatic access to actions |
+| `query` | `QueryProxy` | Programmatic access to queries |
+| `assert` | `AssertProxy` | Programmatic access to assertions |
+| `setup` | `() => Promise<void>` | Manual setup (for programmatic use) |
+| `teardown` | `() => Promise<void>` | Manual teardown (for programmatic use) |
+| `getTrace` | `() => TraceEntry[]` | Get the current test steps |
+| `getCoverage` | `() => VocabularyCoverage` | Get vocabulary coverage stats |
+| `getPlannedTests` | `(name) => PlannedTest[]` | Preview what test names would be registered |
+
+### `test(name, fn)`
+
+Wraps Vitest's `test()`, passing typed domain proxies via callback:
+
+<Tabs syncKey="lang">
+  <TabItem label="TypeScript">
+    ```typescript
+    test('add item', async ({ given, when, query, assert, trace }) => {
+      await given.addItem({ name: 'Widget' })
+      await when.checkout()
+      await assert.hasItems({ count: 1 })
+      const total = await query.cartTotal()
+      const entries = trace()  // trace is a function
+    })
+    ```
+  </TabItem>
+  <TabItem label="Python">
+    ```python
+    @s.test
+    def test_add_item(ctx):
+        ctx.given.add_item(AddItemPayload(name="Widget"))
+        ctx.when.checkout()
+        ctx.then.has_items(1)
+        total = ctx.query.cart_total()
+        entries = ctx.trace()
+    ```
+  </TabItem>
+  <TabItem label="Ruby">
+    ```ruby
+    it "adds an item" do
+      ctx.given.add_item(name: "Widget")
+      ctx.when.checkout
+      ctx.then.has_items(count: 1)
+      total = ctx.query.cart_total
+      entries = ctx.trace
+    end
+    ```
+  </TabItem>
+  <TabItem label="Go">
+    ```go
+    func TestAddItem(t *testing.T) {
+        allSuites.Run(t, "add item", func(ctx *aver.TestContext[CartDomain]) {
+            aver.Given(ctx, Cart.AddItem, AddItemPayload{Name: "Widget"})
+            aver.When(ctx, Cart.Checkout, struct{}{})
+            aver.Then(ctx, Cart.HasItems, HasItemsPayload{Count: 1})
+            total := Cart.CartTotal.From(ctx)
+        })
+    }
+    ```
+  </TabItem>
+  <TabItem label="Rust">
+    ```rust
+    suite.run("add item", |m, ctx| {
+        ctx.given(&m.add_item, AddItemPayload { name: "Widget".into() });
+        ctx.when(&m.checkout, ());
+        ctx.then(&m.has_items, HasItemsPayload { count: 1 });
+        let total = ctx.query(&m.cart_total, ());
+        let entries = ctx.trace();
+    });
+    ```
+  </TabItem>
+  <TabItem label="Kotlin">
+    ```kotlin
+    @Test
+    fun `add item`() = s.run { ctx ->
+        ctx.Given(CartDomain.addItem, AddItemPayload("Widget"))
+        ctx.When(CartDomain.checkout)
+        ctx.Then(CartDomain.hasItems, 1)
+        val total = ctx.Query(CartDomain.cartTotal)
+        val entries = ctx.trace()
+    }
+    ```
+  </TabItem>
+</Tabs>
+
+The callback receives a `TestContext`:
+
+| Property | Type | Description |
+|:---------|:-----|:------------|
+| `act` | `ActProxy<D>` | Typed proxy for actions |
+| `given` | `ActProxy<D>` | Alias for `act` — setup steps (Given-When-Then) |
+| `when` | `ActProxy<D>` | Alias for `act` — trigger steps (Given-When-Then) |
+| `query` | `QueryProxy<D>` | Typed proxy for queries |
+| `assert` | `AssertProxy<D>` | Typed proxy for assertions |
+| `then` | `AssertProxy<D>` | Alias for `assert` — verification steps (Given-When-Then) |
+| `trace` | `() => TraceEntry[]` | Returns the current test steps (callable) |
+
+---
+
+## Configuration
+
+### `defineConfig(config)`
+
+Creates an Aver configuration and auto-registers adapters.
+
+<Tabs syncKey="lang">
+  <TabItem label="TypeScript">
+    ```typescript
+    import { defineConfig } from '@averspec/core'
+    import { unitAdapter } from './adapters/cart.unit'
+    import { httpAdapter } from './adapters/cart.http'
+
+    export default defineConfig({
+      adapters: [unitAdapter, httpAdapter],
+    })
+    ```
+  </TabItem>
+  <TabItem label="Python">
+    ```python
+    from averspec import define_config
+    from adapters.cart_unit import adapter as unit_adapter
+    from adapters.cart_http import adapter as http_adapter
+
+    define_config(adapters=[unit_adapter, http_adapter])
+    ```
+  </TabItem>
+  <TabItem label="Ruby">
+    ```ruby
+    Aver.configure do |config|
+      config.register CartUnitAdapter
+      config.register CartHttpAdapter
+    end
+    ```
+  </TabItem>
+  <TabItem label="Go">
+    ```go
+    // Go registers adapters directly in test files
+    var allSuites = aver.Suites(Cart, UnitAdapter, HTTPAdapter)
+    ```
+  </TabItem>
+  <TabItem label="Rust">
+    ```rust
+    // Rust passes adapter + protocol directly to Suite::new
+    let suite = Suite::new("Cart", markers, adapter, Box::new(protocol));
+    ```
+  </TabItem>
+  <TabItem label="Kotlin">
+    ```kotlin
+    import dev.averspec.defineConfig
+
+    val config = defineConfig {
+        adapter(unitAdapter)
+        adapter(httpAdapter)
+    }
+    ```
+  </TabItem>
+</Tabs>
+
+**`AverConfigInput`:**
+
+| Property | Type | Default | Description |
+|:---------|:-----|:--------|:------------|
+| `adapters` | `Adapter[]` | *required* | Adapters to register |
+| `coverage` | `{ minPercentage?: number }` | `{ minPercentage: 0 }` | Vocabulary coverage threshold |
+| `teardownFailureMode` | `'fail' \| 'warn'` | `'fail'` | Whether teardown errors fail the test |
+
+### `registerAdapter(adapter)`
+
+Manually registers an adapter in the global registry.
+
+### `findAdapter(domain)`
+
+Returns the first registered adapter matching a domain, or `undefined`.
+
+### `findAdapters(domain)`
+
+Returns all registered adapters matching a domain.
+
+### `getAdapters()`
+
+Returns all registered adapters.
+
+### `resetRegistry()`
+
+Clears all registered adapters. Useful in test setup.
+
+### `getRegistrySnapshot()` / `restoreRegistrySnapshot(snapshot)`
+
+Capture and restore registry state. Useful for test isolation.
+
+### `withRegistry(fn)`
+
+Runs a function with an isolated registry that resets afterward.
+
+---
+
+## Telemetry
+
+### `TelemetryCollector`
+
+Interface for providing spans to the framework. Set on `Protocol.telemetry`.
+
+```typescript
+interface TelemetryCollector {
+  getSpans(): CollectedSpan[]
+  reset(): void
+}
+```
+
+### `CollectedSpan`
+
+Span data for telemetry verification.
+
+```typescript
+interface CollectedSpan {
+  readonly traceId: string
+  readonly spanId: string
+  readonly parentSpanId?: string
+  readonly name: string
+  readonly attributes: Readonly<Record<string, unknown>>
+  readonly links?: ReadonlyArray<SpanLink>
+}
+
+interface SpanLink {
+  readonly traceId: string
+  readonly spanId: string
+}
+```
+
+### `createOtlpReceiver()`
+
+Creates an OTLP HTTP receiver for cross-process telemetry testing.
+
+```typescript
+import { createOtlpReceiver } from '@averspec/telemetry'
+
+const receiver = createOtlpReceiver()
+await receiver.start()
+// receiver.port — port the OTLP HTTP endpoint listens on
+// receiver.getSpans() — returns CollectedSpan[]
+// receiver.reset() — clears collected spans
+// receiver.stop() — shuts down the server
+```
+
+The receiver implements `TelemetryCollector` so it can be set directly on a protocol's `telemetry` property.
+
+### `verifyCorrelation(trace, spans)`
+
+Verifies that correlated trace entries have causally connected spans.
+
+```typescript
+import { verifyCorrelation } from '@averspec/core/internals'
+```
+
+### Telemetry Declarations
+
+Declared on domain markers via the `telemetry` option:
+
+<Tabs syncKey="lang">
+  <TabItem label="TypeScript">
+    ```typescript
+    // Static — fixed span name and attributes
+    action({ telemetry: { span: 'order.checkout' } })
+
+    // Parameterized — attributes derived from payload
+    action<{ orderId: string }>({
+      telemetry: (p) => ({
+        span: 'order.checkout',
+        attributes: { 'order.id': p.orderId },
+      }),
+    })
+    ```
+  </TabItem>
+  <TabItem label="Python">
+    ```python
+    checkout = action(OrderPayload,
+        telemetry={"span": "order.checkout"})
+
+    checkout = action(OrderPayload,
+        telemetry=lambda p: {
+            "span": "order.checkout",
+            "attributes": {"order.id": p.order_id},
+        })
+    ```
+  </TabItem>
+  <TabItem label="Ruby">
+    ```ruby
+    action :checkout, telemetry: { span: "order.checkout" }
+
+    action :checkout, telemetry: ->(p) {
+      { span: "order.checkout", attributes: { "order.id" => p[:order_id] } }
+    }
+    ```
+  </TabItem>
+  <TabItem label="Go">
+    ```go
+    // Telemetry declarations are configured at the adapter level in Go
+    // via TelemetryExpectation on marker registration
+    ```
+  </TabItem>
+  <TabItem label="Rust">
+    ```rust
+    // Telemetry expectations are configured via TelemetryExpectation structs
+    // and verified against collected spans after test execution
+    ```
+  </TabItem>
+  <TabItem label="Kotlin">
+    ```kotlin
+    // Telemetry declarations are associated with markers during domain creation
+    action<OrderPayload>("checkout") {
+        telemetry = TelemetryExpectation(span = "order.checkout")
+    }
+    ```
+  </TabItem>
+</Tabs>
+
+**`TelemetryExpectation`:**
+
+| Property | Type | Description |
+|:---------|:-----|:------------|
+| `span` | `string` | OTel span name to match |
+| `attributes` | `Record<string, TelemetryAttributeValue>` | Required span attributes. Primitives for exact match, or asymmetric matchers (e.g. `expect.any(String)`) |
+| `causes` | `string[]` | Span names this operation causally triggers. Opts in to causal correlation — verifies trace connection (same trace or span link) to the named spans. |
+
+### `AVER_TELEMETRY_MODE`
+
+Environment variable controlling telemetry verification:
+
+| Value | Behavior | Default when |
+|:------|:---------|:-------------|
+| `fail` | Missing/mismatched spans fail the test | `CI` is set |
+| `warn` | Mismatches recorded but tests pass | `CI` is not set |
+| `off` | No telemetry verification | — |
+
+---
+
+## Test Context
+
+### `getTestContext()`
+
+Returns the current test context from async-local storage, or `undefined` if not in a test.
+
+### `runWithTestContext(context, fn)`
+
+Runs a function within a test context (for framework-level use).
+
+---
+
+## Registry Lifecycle
+
+### How Adapters Are Registered
+
+`defineConfig({ adapters })` calls `registerAdapter()` for each adapter when the config module is evaluated. This is the standard path — your `aver.config.ts` runs once and registers all adapters for the process.
+
+You can also call `registerAdapter()` directly in test files or setup files.
+
+### When Adapters Are Resolved
+
+`suite(domain)` resolves adapters lazily — at test execution time, not when `suite()` is called. On first invocation, `suite()` calls `maybeAutoloadConfig()` to import `aver.config.ts` if it hasn't been loaded yet. Set `AVER_AUTOLOAD_CONFIG=false` to skip this.
+
+Passing an adapter directly — `suite(domain, adapter)` — bypasses the registry entirely.
+
+### Environment Filtering
+
+Two environment variables control which tests run:
+
+- `AVER_ADAPTER=unit` — only run tests for adapters whose protocol name matches
+- `AVER_DOMAIN=ShoppingCart` — only register tests for the named domain
+
+These map to the CLI flags `aver run --adapter unit` and `aver run --domain ShoppingCart`.
+
+### Multi-Adapter Dispatch
+
+When multiple adapters are registered for one domain, `suite()` creates a parameterized test for each:
+
+```
+add item [unit]     ← runs against unit adapter
+add item [http]     ← runs against http adapter
+```
+
+Each adapter gets its own protocol context (fresh `setup()` / `teardown()` per test per adapter).
+
+### Parent Chain Resolution
+
+If no adapter is registered for a domain, `findAdapter()` walks the `domain.parent` chain. This means an adapter registered for a parent domain works for extended domains that haven't overridden it.
+
+### Test Isolation
+
+The registry is process-global state. If your tests register their own adapters (common in framework-level testing), call `resetRegistry()` in `beforeEach` to prevent cross-test leakage:
+
+```typescript
+import { resetRegistry, registerAdapter } from '@averspec/core/internals'
+
+beforeEach(() => {
+  resetRegistry()
+  registerAdapter(myTestAdapter)
+})
+```
+
+---
+
+## Types
+
+### From `@averspec/core`
+
+```typescript
+import type {
+  // Domain & markers
+  Domain,
+  MarkerOptions,
+
+  // Adapters & protocols
+  Adapter,
+  Protocol,
+  TestMetadata,
+  TestCompletion,
+  ProtocolExtensions,
+  Screenshotter,
+
+  // Telemetry
+  TelemetryCollector,
+  CollectedSpan,
+  SpanLink,
+  TelemetryMatchResult,
+
+  // Suite & testing
+  TestContext,
+  SuiteReturn,
+
+  // Config
+  AverConfig,
+  AverConfigInput,
+
+  // Trace
+  TraceEntry,
+  TraceAttachment,
+} from '@averspec/core'
+```
+
+### From `@averspec/core/internals`
+
+These types are **not** re-exported from `@averspec/core`. Import them from the `@averspec/core/internals` subpath.
+
+```typescript
+import type {
+  // Domain & markers
+  ActionMarker,
+  QueryMarker,
+  AssertionMarker,
+  TelemetryExpectation,
+  TelemetryDeclaration,
+  TelemetryAttributeValue,
+  AsymmetricMatcher,
+
+  // Suite & testing
+  ActProxy,
+  QueryProxy,
+  AssertProxy,
+  PlannedTest,
+  RunningTestContext,
+
+  // Config
+  CoverageConfig,
+  TeardownFailureMode,
+
+  // Trace & coverage
+  VocabularyCoverage,
+
+  // Correlation
+  CorrelationResult,
+  CorrelationGroup,
+  CorrelationViolation,
+
+  // Registry
+  RegistrySnapshot,
+} from '@averspec/core/internals'
+```
+
+### `TraceEntry`
+
+```typescript
+interface TraceEntry {
+  kind: 'action' | 'query' | 'assertion' | 'test'
+  category?: 'given' | 'when' | 'act' | 'query' | 'then' | 'assert'
+  name: string
+  domainName?: string
+  payload: unknown
+  status: 'pass' | 'fail'
+  result?: unknown
+  error?: unknown
+  startAt?: number
+  endAt?: number
+  durationMs?: number
+  attachments?: TraceAttachment[]
+  metadata?: Record<string, unknown>
+  correlationId?: string
+  telemetry?: TelemetryMatchResult
+}
+```
+
+### `Protocol<Context>`
+
+```typescript
+interface Protocol<Context> {
+  readonly name: string
+  setup(): Promise<Context>
+  teardown(ctx: Context): Promise<void>
+  onTestStart?(ctx: Context, meta: TestMetadata): Promise<void> | void
+  onTestFail?(ctx: Context, meta: TestCompletion): Promise<TestFailureResult> | TestFailureResult
+  onTestEnd?(ctx: Context, meta: TestCompletion): Promise<void> | void
+  extensions?: ProtocolExtensions
+  telemetry?: TelemetryCollector
+}
+```
+
+The lifecycle hooks are optional. `onTestStart` runs before each test body. `onTestFail` runs when a test fails and can return `TraceAttachment[]` (e.g., screenshots). `onTestEnd` runs after each test regardless of outcome.
+
+---
+
+## Approval Testing <small>from `@averspec/approvals`</small>
+
+### `approve(value, options?)`
+
+Approves a value against a stored baseline. Auto-detects serializer: objects use JSON, strings use text. Also exported as `characterize` for characterization test contexts.
+
+<Tabs syncKey="lang">
+  <TabItem label="TypeScript">
+    ```typescript
+    import { approve } from '@averspec/approvals'
+    // or: import { characterize } from '@averspec/approvals'
+
+    await approve({ count: 42 })                    // default name "approval"
+    await approve(reportText, { name: 'report' })   // named approval
+    ```
+  </TabItem>
+  <TabItem label="Python">
+    ```python
+    from averspec import approve
+    # or: from averspec import characterize
+
+    approve({"count": 42})
+    approve(report_text, name="report")
+    ```
+  </TabItem>
+  <TabItem label="Ruby">
+    ```ruby
+    Aver::Approvals.approve({ count: 42 })
+    Aver::Approvals.approve(report_text, name: "report")
+    ```
+  </TabItem>
+  <TabItem label="Go">
+    ```go
+    aver.Approve(map[string]int{"count": 42})
+    aver.Approve(reportText, aver.ApprovalOptions{Name: "report"})
+    ```
+  </TabItem>
+  <TabItem label="Rust">
+    ```rust
+    use averspec::approvals::approve;
+
+    approve(&serde_json::json!({"count": 42}), "approval", &dir)?;
+    ```
+  </TabItem>
+  <TabItem label="Kotlin">
+    ```kotlin
+    import dev.averspec.approve
+
+    approve("""{"count": 42}""", approvalFile)
+    approve(reportText, approvalFile, scrub = Scrubbers.UUID)
+    ```
+  </TabItem>
+</Tabs>
+
+First run fails with "Baseline missing". Run `npx aver approve` to create baselines.
+
+Baselines are stored in `__approvals__/<test-name>/` next to the test file. Commit `.approved` files; gitignore `.received` and `.diff` files.
+
+**Options:**
+
+| Property | Type | Default | Description |
+|:---------|:-----|:--------|:------------|
+| `name` | `string` | `'approval'` | Name for the approval file |
+| `fileExtension` | `string` | auto | Override file extension |
+| `filePath` | `string` | auto | Override test file path (for programmatic use) |
+| `testName` | `string` | auto | Override test name (for programmatic use) |
+| `serializer` | `SerializerName` | auto | Serializer to use (`'json'`, `'text'`, or custom name) |
+| `comparator` | `Comparator` | default | Custom comparison function `(approved, received) => { equal: boolean }` |
+
+### `approve.visual(nameOrOptions)`
+
+Approves a screenshot against a stored baseline image. Requires a protocol with `screenshotter` extension (e.g., Playwright). Throws an error on protocols without one.
+
+```typescript
+await approve.visual('board-state')                          // full page
+await approve.visual({ name: 'backlog', region: 'backlog' }) // scoped region
+```
+
+**Options (when passing object):**
+
+| Property | Type | Required | Description |
+|:---------|:-----|:---------|:------------|
+| `name` | `string` | yes | Name for the approval image file |
+| `region` | `string` | no | Named region (maps to CSS selector in adapter) |
+| `threshold` | `number` | no | Pixel difference threshold (0-1) for visual comparison |
+
+### `Screenshotter` <small>from `@averspec/core`</small>
+
+Extension interface for visual approval support. Protocols implement this.
+
+```typescript
+interface Screenshotter {
+  capture(outputPath: string, options?: { region?: string }): Promise<void>
+  regions?: Record<string, string>
+}
+```
+
+Playwright configures regions at adapter creation:
+
+```typescript
+const proto = playwright({
+  regions: {
+    'board': '.board',
+    'backlog': '[data-testid="column-backlog"]',
+  },
+})
+```
+
+### Test Runner Integration
+
+`approve()` integrates with test runners by throwing standard `Error`-based assertion errors when a baseline mismatch is detected. The test runner catches these errors and reports them as test failures.
+
+- **Vitest and Jest** work out of the box — both catch thrown errors as assertion failures
+- **Other test runners** need to support standard `Error`-based assertions (most do)
+- Run `npx aver approve` to update baselines. Under the hood this sets `AVER_APPROVE=1`, which tells `approve()` to write received values as the new baselines instead of comparing.
+
+---
+
+## CLI
+
+### `aver run`
+
+Runs tests via Vitest.
+
+<Tabs syncKey="lang">
+  <TabItem label="TypeScript">
+    ```bash
+    npx aver run                         # all tests
+    npx aver run --adapter unit          # filter by adapter
+    npx aver run --domain ShoppingCart   # filter by domain
+    npx aver run --watch                 # watch mode
+    ```
+  </TabItem>
+  <TabItem label="Python">
+    ```bash
+    aver run                             # all tests
+    aver run --adapter unit              # filter by adapter
+    aver run --domain ShoppingCart       # filter by domain
+    ```
+  </TabItem>
+  <TabItem label="Ruby">
+    ```bash
+    aver run                             # all tests
+    aver run --adapter unit              # filter by adapter
+    aver run --domain ShoppingCart       # filter by domain
+    ```
+  </TabItem>
+  <TabItem label="Go">
+    ```bash
+    go test ./...                                    # all tests
+    AVER_ADAPTER=unit go test ./...                  # filter by adapter
+    AVER_DOMAIN=ShoppingCart go test ./...            # filter by domain
+    ```
+  </TabItem>
+  <TabItem label="Rust">
+    ```bash
+    cargo test                                       # all tests
+    AVER_ADAPTER=unit cargo test                     # filter by adapter
+    AVER_DOMAIN=ShoppingCart cargo test               # filter by domain
+    ```
+  </TabItem>
+  <TabItem label="Kotlin">
+    ```bash
+    ./gradlew test                                   # all tests
+    AVER_ADAPTER=unit ./gradlew test                 # filter by adapter
+    AVER_DOMAIN=ShoppingCart ./gradlew test           # filter by domain
+    ```
+  </TabItem>
+</Tabs>
+
+### `aver init`
+
+Interactive scaffolding wizard. Prompts for domain name and protocol, then generates:
+- `domains/<kebab>.ts`
+- `adapters/<kebab>.<protocol>.ts`
+- `tests/<kebab>.spec.ts`
+- `aver.config.ts` (if it doesn't exist)
+
+<Tabs syncKey="lang">
+  <TabItem label="TypeScript">
+    ```bash
+    npx aver init
+    ```
+  </TabItem>
+  <TabItem label="Python">
+    ```bash
+    aver init
+    ```
+  </TabItem>
+  <TabItem label="Ruby">
+    ```bash
+    aver init
+    ```
+  </TabItem>
+  <TabItem label="Go">
+    ```bash
+    # Define domain, adapter, and test in Go files directly
+    ```
+  </TabItem>
+  <TabItem label="Rust">
+    ```bash
+    # Define domain, adapter, and test in Rust files directly
+    ```
+  </TabItem>
+  <TabItem label="Kotlin">
+    ```bash
+    # Define domain, adapter, and test in Kotlin files directly
+    ```
+  </TabItem>
+</Tabs>
+
+### `aver approve`
+
+Updates approval baselines by running tests with `AVER_APPROVE=1`.
+
+<Tabs syncKey="lang">
+  <TabItem label="TypeScript">
+    ```bash
+    npx aver approve                               # approve all
+    npx aver approve tests/my-test.spec.ts         # approve specific file
+    npx aver approve --adapter playwright          # approve for specific adapter
+    ```
+  </TabItem>
+  <TabItem label="Python">
+    ```bash
+    aver approve                                   # approve all
+    aver approve tests/test_my_test.py             # approve specific file
+    aver approve --adapter playwright              # approve for specific adapter
+    ```
+  </TabItem>
+  <TabItem label="Ruby">
+    ```bash
+    aver approve                                   # approve all
+    aver approve spec/my_test_spec.rb              # approve specific file
+    ```
+  </TabItem>
+  <TabItem label="Go">
+    ```bash
+    AVER_APPROVE=1 go test ./...                   # approve all
+    AVER_APPROVE=1 go test ./path/to/test          # approve specific
+    ```
+  </TabItem>
+  <TabItem label="Rust">
+    ```bash
+    AVER_APPROVE=1 cargo test                      # approve all
+    AVER_APPROVE=1 cargo test test_name            # approve specific
+    ```
+  </TabItem>
+  <TabItem label="Kotlin">
+    ```bash
+    AVER_APPROVE=1 ./gradlew test                  # approve all
+    ```
+  </TabItem>
+</Tabs>
+
+---
+
+## Eventually
+
+Polls a function until it succeeds or a timeout expires. Useful for async assertions in integration tests.
+
+<Tabs syncKey="lang">
+  <TabItem label="TypeScript">
+    ```typescript
+    import { eventually } from '@averspec/core'
+
+    await eventually(async () => {
+      const count = await query.taskCount()
+      expect(count).toBe(3)
+    }, { timeout: 5000, interval: 100 })
+    ```
+  </TabItem>
+  <TabItem label="Python">
+    ```python
+    from averspec import eventually
+
+    eventually(
+        lambda: assert ctx.query.task_count() == 3,
+        timeout=5.0,
+        interval=0.1,
+    )
+    ```
+  </TabItem>
+  <TabItem label="Ruby">
+    ```ruby
+    Aver.eventually(timeout: 5.0, interval: 0.1) do
+      count = ctx.query.task_count
+      raise "expected 3" unless count == 3
+    end
+    ```
+  </TabItem>
+  <TabItem label="Go">
+    ```go
+    err := aver.Eventually(func() error {
+        count := Cart.TaskCount.From(ctx)
+        if count != 3 { return fmt.Errorf("expected 3, got %d", count) }
+        return nil
+    }, aver.EventuallyOpts{Timeout: 2 * time.Second, Interval: 50 * time.Millisecond})
+    ```
+  </TabItem>
+  <TabItem label="Rust">
+    ```rust
+    use averspec::{eventually, EventuallyOptions};
+
+    eventually(|| {
+        if count != 3 { Err("expected 3".into()) }
+        else { Ok(()) }
+    })?;
+
+    eventually_with(EventuallyOptions { timeout: Duration::from_secs(5), ..Default::default() }, || {
+        // ...
+    })?;
+    ```
+  </TabItem>
+  <TabItem label="Kotlin">
+    ```kotlin
+    import dev.averspec.eventually
+
+    eventually(timeoutMs = 5000, intervalMs = 100) {
+        val count = ctx.Query(CartDomain.taskCount)
+        assertEquals(3, count)
+    }
+    ```
+  </TabItem>
+</Tabs>
