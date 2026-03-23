@@ -2,6 +2,8 @@
 title: "Telemetry"
 ---
 
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
 > **Experimental.** Telemetry verification is functional and tested but has not been validated in production environments. The correlation model, `causes` API, and contract verification workflow may evolve based on real-world usage. If you're using this in practice, we'd love to hear about your experience — [open an issue](https://github.com/averspec/aver/issues) or [start a discussion](https://github.com/averspec/aver/discussions).
 
 This guide covers decisions and advanced usage beyond the [Telemetry Tutorial](/tutorial-telemetry/). If you haven't done the tutorial, start there — it walks through declarations, collector setup, failure modes, and basic correlation step by step.
@@ -22,6 +24,8 @@ The tutorial covers basic correlation — operations sharing an attribute key wi
 
 The `causes` declaration tells the verifier about these causal relationships:
 
+<Tabs syncKey="lang">
+<TabItem label="TypeScript">
 ```typescript
 assignTask: action<{ title: string; assignee: string }>({
   telemetry: (p) => ({
@@ -31,6 +35,60 @@ assignTask: action<{ title: string; assignee: string }>({
   }),
 }),
 ```
+</TabItem>
+<TabItem label="Python">
+```python
+assign_task = action(
+    AssignTaskPayload,
+    telemetry=lambda p: TelemetryExpectation(
+        span="task.assign",
+        attributes={"task.title": p.title},
+        causes=["notification.process"],
+    ),
+)
+```
+</TabItem>
+<TabItem label="Ruby">
+```ruby
+action :assign_task, telemetry: ->(p) {
+  { span: "task.assign",
+    attributes: { "task.title" => p.title },
+    causes: ["notification.process"] }
+}
+```
+</TabItem>
+<TabItem label="Go">
+```go
+AssignTask: aver.Action[AssignTaskPayload](aver.Telemetry(func(p AssignTaskPayload) aver.TelemetryExpectation {
+    return aver.TelemetryExpectation{
+        Span:       "task.assign",
+        Attributes: map[string]any{"task.title": p.Title},
+        Causes:     []string{"notification.process"},
+    }
+})),
+```
+</TabItem>
+<TabItem label="Rust">
+```rust
+assign_task: action::<AssignTaskPayload>()
+    .telemetry(|p| Telemetry::new("task.assign")
+        .attr("task.title", &p.title)
+        .causes(["notification.process"]))
+    .build(),
+```
+</TabItem>
+<TabItem label="Kotlin">
+```kotlin
+val assignTask = action<AssignTaskPayload>("assignTask",
+    telemetry = { p -> TelemetryExpectation(
+        span = "task.assign",
+        attributes = mapOf("task.title" to p.title),
+        causes = listOf("notification.process"),
+    ) }
+)
+```
+</TabItem>
+</Tabs>
 
 This says: "when `task.assign` runs, it should produce a `notification.process` span that is causally connected — either in the same trace or linked via a span link." If the spans are in different traces with no link, verification fails:
 
@@ -48,6 +106,8 @@ Use `causes` when your code explicitly triggers the downstream operation (queues
 
 Aver verifies telemetry immediately after each adapter handler returns. If your application emits spans asynchronously (batched exporter, background worker), flush them before the handler returns:
 
+<Tabs syncKey="lang">
+<TabItem label="TypeScript">
 ```typescript
 actions: {
   async createTask(ctx, payload) {
@@ -57,6 +117,52 @@ actions: {
   },
 }
 ```
+</TabItem>
+<TabItem label="Python">
+```python
+async def create_task(ctx, payload):
+    res = await ctx.post("/api/tasks", payload)
+    flush_tracing()  # Ensure spans reach the OTLP receiver
+    return res.json()
+```
+</TabItem>
+<TabItem label="Ruby">
+```ruby
+create_task: ->(ctx, payload) {
+  res = ctx.post("/api/tasks", payload)
+  flush_tracing  # Ensure spans reach the OTLP receiver
+  res.body
+}
+```
+</TabItem>
+<TabItem label="Go">
+```go
+func (a *adapter) CreateTask(ctx context.Context, p CreateTaskPayload) (any, error) {
+    res, err := ctx.Post("/api/tasks", p)
+    flushTracing() // Ensure spans reach the OTLP receiver
+    return res.JSON(), err
+}
+```
+</TabItem>
+<TabItem label="Rust">
+```rust
+async fn create_task(ctx: &mut Ctx, payload: CreateTaskPayload) -> Result<Value> {
+    let res = ctx.post("/api/tasks", &payload).await?;
+    flush_tracing().await; // Ensure spans reach the OTLP receiver
+    Ok(res.json())
+}
+```
+</TabItem>
+<TabItem label="Kotlin">
+```kotlin
+override suspend fun createTask(ctx: Ctx, payload: CreateTaskPayload): Any {
+    val res = ctx.post("/api/tasks", payload)
+    flushTracing() // Ensure spans reach the OTLP receiver
+    return res.json()
+}
+```
+</TabItem>
+</Tabs>
 
 For async operations like queued workers, drain the queue first:
 

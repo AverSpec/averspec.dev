@@ -5,7 +5,7 @@ draft: true
 
 The Ruby port had 331 passing tests and I rewrote the entire API before it shipped. The code worked. I didn't like how it felt. Block DSL to class inheritance. Every public surface changed. The behavioral spec validated the result in seconds. 327 tests passed. I hadn't looked at the implementation.
 
-Then I did the same kind of pass across every port. Go had an awkward `.D` field indirection on every marker access — a generics limitation. The agent redesigned the domain registry to eliminate it. Rust was using opaque tuples for payloads and forcing users to name every marker twice. A declarative macro and named structs fixed both. Kotlin had backtick escaping on every `when` call because it's a reserved keyword. An `act` alias fixed it in one line. Python was forcing dataclass imports for every payload. Kwargs support on the proxy made them optional.
+Then I did the same kind of pass across every port. Go had an awkward `.D` field indirection on every marker access — a generics limitation. The agent redesigned `NewDomain` to return `*D` directly, eliminating the indirection from every marker access across 30 files. Rust was using opaque tuples for payloads and forcing users to name every marker twice. A declarative macro and named structs fixed both, and later a `t` to `ctx` rename aligned the test context variable with every other port. Kotlin had backtick escaping on every `when` call because it's a reserved keyword. Capitalizing all three — `ctx.Given()`, `ctx.When()`, `ctx.Then()` — reads like BDD specs and sidesteps the keyword without backticks. Python was forcing dataclass imports for every payload. Kwargs support on the proxy made them optional.
 
 Each fix was one or two agent dispatches. Each was validated by the same behavioral spec. None of them required me to read the implementation. I checked two things: does the acceptance test count hold, and would I want to write code like this.
 
@@ -45,7 +45,7 @@ Go, Rust, and Kotlin launched as parallel background agents. Each came back with
 
 Then the polish cycle started. A DX audit panel reviewed all six APIs for idiom fit and principle of least surprise. Every port had issues. Go's marker access pattern was wrong. Rust's payload types were unreadable. Kotlin's keyword collision was ugly. Python's payload verbosity was unnecessary. Ruby's DSL was clever but not obvious.
 
-Each issue was fixed, re-tested against the spec, and pushed. The cycle was: audit, fix, verify, ship. No regression. No wall. The spec held.
+Each issue was fixed, re-tested against the spec, and pushed. The cycle was: audit, fix, verify, ship. No regression. No wall. The spec held. The polish kept going after the initial DX pass — the docs site gained multi-language tabs with a persistent language selector, so a Go developer sees Go examples on every page without switching.
 
 The TypeScript original has one DX issue that none of the ports share: every test must be `async` with `await` on every proxy call, even for purely synchronous unit adapters. JavaScript can't synchronously block on a Promise, so if any adapter might be async, every test must be async. Python solved this by hiding the event loop inside the proxy. TypeScript can't. The ports taught me something about the original.
 

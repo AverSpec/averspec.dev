@@ -2,6 +2,8 @@
 title: "Tutorial: Telemetry Verification"
 ---
 
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
 Your API returns the right data. Your tests pass. Then production goes dark — a span is missing, a trace is disconnected, and the relationships between operations are silently destroyed. Nobody noticed because no test checked observability.
 
 Observability data is made powerful by context. A checkout span alone tells you little. A checkout span connected to a payment span connected to a fulfillment span — all sharing an order ID, all in the same trace — tells you the whole story. When those connections break, your dashboards go dark and your agents can't validate what they shipped.
@@ -30,6 +32,8 @@ Aver treats telemetry as a testable contract. You declare what spans each operat
 
 Start with the pricing domain from the main tutorial. Add `telemetry` to the markers that represent observable operations:
 
+<Tabs syncKey="lang">
+<TabItem label="TypeScript">
 ```typescript
 // domains/pricing.ts
 import { defineDomain, action, query, assertion } from '@averspec/core'
@@ -57,6 +61,116 @@ export const pricing = defineDomain({
   },
 })
 ```
+</TabItem>
+<TabItem label="Python">
+```python
+# domains/pricing.py
+from averspec import define_domain, action, query, assertion, TelemetryExpectation
+
+pricing = define_domain(
+    name="pricing",
+    actions={
+        "add_line_item": action(
+            AddLineItemPayload,
+            telemetry=lambda p: TelemetryExpectation(
+                span="pricing.add-line-item",
+                attributes={"product.name": p.product},
+            ),
+        ),
+    },
+    queries={
+        "invoice_total": query(float, telemetry=TelemetryExpectation(span="pricing.invoice-total")),
+        "applied_discount": query(float),
+    },
+    assertions={
+        "total_equals": assertion(TotalEqualsPayload),
+        "discount_applied": assertion(DiscountPayload),
+        "no_discount": assertion(),
+    },
+)
+```
+</TabItem>
+<TabItem label="Ruby">
+```ruby
+# domains/pricing.rb
+pricing = Aver.define_domain("pricing") do
+  action :add_line_item, telemetry: ->(p) {
+    { span: "pricing.add-line-item",
+      attributes: { "product.name" => p.product } }
+  }
+
+  query :invoice_total, telemetry: { span: "pricing.invoice-total" }
+  query :applied_discount
+  assertion :total_equals
+  assertion :discount_applied
+  assertion :no_discount
+end
+```
+</TabItem>
+<TabItem label="Go">
+```go
+// domains/pricing.go
+var Pricing = aver.NewDomain("pricing",
+    aver.Actions(
+        aver.Action[AddLineItemPayload]("addLineItem",
+            aver.Telemetry(func(p AddLineItemPayload) aver.TelemetryExpectation {
+                return aver.TelemetryExpectation{
+                    Span:       "pricing.add-line-item",
+                    Attributes: map[string]any{"product.name": p.Product},
+                }
+            }),
+        ),
+    ),
+    aver.Queries(
+        aver.Query[float64]("invoiceTotal",
+            aver.StaticTelemetry("pricing.invoice-total"),
+        ),
+        aver.Query[float64]("appliedDiscount"),
+    ),
+)
+```
+</TabItem>
+<TabItem label="Rust">
+```rust
+// domains/pricing.rs
+let pricing = define_domain!("pricing", {
+    actions: {
+        add_line_item: action::<AddLineItemPayload>()
+            .telemetry(|p| Telemetry::new("pricing.add-line-item")
+                .attr("product.name", &p.product))
+            .build(),
+    },
+    queries: {
+        invoice_total: query::<f64>()
+            .telemetry(Telemetry::new("pricing.invoice-total"))
+            .build(),
+        applied_discount: query::<f64>().build(),
+    },
+});
+```
+</TabItem>
+<TabItem label="Kotlin">
+```kotlin
+// domains/Pricing.kt
+val pricing = defineDomain("pricing") {
+    actions {
+        action<AddLineItemPayload>("addLineItem",
+            telemetry = { p -> TelemetryExpectation(
+                span = "pricing.add-line-item",
+                attributes = mapOf("product.name" to p.product),
+            ) }
+        )
+    }
+    queries {
+        query<Double>("invoiceTotal",
+            telemetry = TelemetryExpectation(span = "pricing.invoice-total"),
+        )
+        query<Double>("appliedDiscount")
+    }
+}
+```
+</TabItem>
+</Tabs>
 
 Two forms are shown here:
 
@@ -71,6 +185,8 @@ Not every marker needs a telemetry declaration. `appliedDiscount`, `totalEquals`
 
 The framework needs access to the spans your code emits. You provide this through a `telemetry` property on the adapter's protocol.
 
+<Tabs syncKey="lang">
+<TabItem label="TypeScript">
 For in-process testing, use the OTel SDK's `InMemorySpanExporter`:
 
 ```typescript
@@ -163,6 +279,104 @@ export const unitAdapter = adapt(pricing, {
   },
 })
 ```
+</TabItem>
+<TabItem label="Python">
+For in-process testing, use the OTel SDK's `InMemorySpanExporter`:
+
+```python
+# adapters/pricing_unit.py
+from opentelemetry.sdk.trace import TracerProvider
+from opentelemetry.sdk.trace.export import SimpleSpanProcessor
+from opentelemetry.sdk.trace.export.in_memory import InMemorySpanExporter
+from averspec import adapt, TelemetryCollector
+
+exporter = InMemorySpanExporter()
+provider = TracerProvider()
+provider.add_span_processor(SimpleSpanProcessor(exporter))
+
+collector = TelemetryCollector(
+    get_spans=lambda: [
+        {"traceId": s.context.trace_id, "name": s.name, "attributes": dict(s.attributes)}
+        for s in exporter.get_finished_spans()
+    ],
+    reset=lambda: exporter.clear(),
+)
+
+unit_adapter = adapt(pricing, protocol=Protocol(name="unit", telemetry=collector), ...)
+```
+</TabItem>
+<TabItem label="Ruby">
+For in-process testing, use the OTel SDK's in-memory exporter:
+
+```ruby
+# adapters/pricing_unit.rb
+require "opentelemetry-sdk"
+
+exporter = OpenTelemetry::SDK::Trace::Export::InMemorySpanExporter.new
+provider = OpenTelemetry::SDK::Trace::TracerProvider.new
+provider.add_span_processor(OpenTelemetry::SDK::Trace::Export::SimpleSpanProcessor.new(exporter))
+
+collector = Aver::TelemetryCollector.new(
+  get_spans: -> { exporter.finished_spans.map { |s| { name: s.name, attributes: s.attributes } } },
+  reset: -> { exporter.reset },
+)
+
+unit_adapter = Aver.adapt(pricing, protocol: Aver::Protocol.new(name: "unit", telemetry: collector), ...)
+```
+</TabItem>
+<TabItem label="Go">
+For in-process testing, use the OTel SDK's in-memory exporter:
+
+```go
+// adapters/pricing_unit.go
+exporter := tracetest.NewInMemoryExporter()
+tp := sdktrace.NewTracerProvider(sdktrace.WithSyncer(exporter))
+
+collector := &aver.TelemetryCollector{
+    GetSpans: func() []aver.CollectedSpan { /* map from exporter */ },
+    Reset:    func() { exporter.Reset() },
+}
+
+protocol := aver.Protocol{Name: "unit", Telemetry: collector}
+```
+</TabItem>
+<TabItem label="Rust">
+For in-process testing, use an in-memory span collector:
+
+```rust
+// adapters/pricing_unit.rs
+let exporter = InMemorySpanExporter::new();
+let provider = TracerProvider::builder()
+    .with_simple_exporter(exporter.clone())
+    .build();
+
+let collector = TelemetryCollector::new(
+    move || exporter.get_finished_spans().into_iter().map(/* ... */).collect(),
+    move || exporter.reset(),
+);
+
+let protocol = Protocol::new("unit").telemetry(collector);
+```
+</TabItem>
+<TabItem label="Kotlin">
+For in-process testing, use the OTel SDK's in-memory exporter:
+
+```kotlin
+// adapters/PricingUnit.kt
+val exporter = InMemorySpanExporter.create()
+val provider = SdkTracerProvider.builder()
+    .addSpanProcessor(SimpleSpanProcessor.create(exporter))
+    .build()
+
+val collector = TelemetryCollector(
+    getSpans = { exporter.finishedSpanItems.map { /* ... */ } },
+    reset = { exporter.reset() },
+)
+
+val protocol = Protocol(name = "unit", telemetry = collector)
+```
+</TabItem>
+</Tabs>
 
 The key piece is the `telemetry` property on the protocol. It implements the `TelemetryCollector` interface — `getSpans()` returns the collected spans, and `reset()` clears them between tests. The framework calls these automatically.
 
@@ -172,6 +386,8 @@ The key piece is the `telemetry` property on the protocol. It implements the `Te
 
 The tests from the main tutorial still work:
 
+<Tabs syncKey="lang">
+<TabItem label="TypeScript">
 ```typescript
 // tests/pricing.spec.ts
 import { suite } from '@averspec/core'
@@ -185,6 +401,71 @@ test('basic invoice total', async ({ given, when, then }) => {
   await then.totalEquals({ expected: 27.00 })
 })
 ```
+</TabItem>
+<TabItem label="Python">
+```python
+# tests/test_pricing.py
+from averspec import suite
+from domains.pricing import pricing
+
+s = suite(pricing)
+
+@s.test("basic invoice total")
+def test_basic_invoice_total(ctx):
+    ctx.given.add_line_item(product="Widget", quantity=2, unit_price=10.00)
+    ctx.when.add_line_item(product="Gadget", quantity=1, unit_price=5.00)
+    ctx.then.total_equals(expected=27.00)
+```
+</TabItem>
+<TabItem label="Ruby">
+```ruby
+# tests/pricing_spec.rb
+s = Aver.suite(pricing)
+
+s.test "basic invoice total" do |ctx|
+  ctx.given.add_line_item(product: "Widget", quantity: 2, unit_price: 10.00)
+  ctx.when.add_line_item(product: "Gadget", quantity: 1, unit_price: 5.00)
+  ctx.then.total_equals(expected: 27.00)
+end
+```
+</TabItem>
+<TabItem label="Go">
+```go
+// tests/pricing_test.go
+s := aver.Suite(pricing)
+
+s.Test("basic invoice total", func(ctx *aver.TestCtx) {
+    ctx.Given().AddLineItem(AddLineItemPayload{Product: "Widget", Quantity: 2, UnitPrice: 10.00})
+    ctx.When().AddLineItem(AddLineItemPayload{Product: "Gadget", Quantity: 1, UnitPrice: 5.00})
+    ctx.Then().TotalEquals(TotalEqualsPayload{Expected: 27.00})
+})
+```
+</TabItem>
+<TabItem label="Rust">
+```rust
+// tests/pricing_test.rs
+let s = suite!(pricing);
+
+s.test("basic invoice total", |ctx| async move {
+    ctx.given().add_line_item(AddLineItemPayload { product: "Widget", quantity: 2, unit_price: 10.00 }).await;
+    ctx.when().add_line_item(AddLineItemPayload { product: "Gadget", quantity: 1, unit_price: 5.00 }).await;
+    ctx.then().total_equals(TotalEqualsPayload { expected: 27.00 }).await;
+});
+```
+</TabItem>
+<TabItem label="Kotlin">
+```kotlin
+// tests/PricingTest.kt
+val s = suite(pricing)
+
+s.test("basic invoice total") { ctx ->
+    ctx.Given().addLineItem(AddLineItemPayload(product = "Widget", quantity = 2, unitPrice = 10.00))
+    ctx.When().addLineItem(AddLineItemPayload(product = "Gadget", quantity = 1, unitPrice = 5.00))
+    ctx.Then().totalEquals(TotalEqualsPayload(expected = 27.00))
+}
+```
+</TabItem>
+</Tabs>
 
 Run them with telemetry verification enabled:
 
@@ -214,6 +495,8 @@ This is the gap. Without telemetry verification, this test would pass green whil
 
 Add OTel spans to the adapter implementation:
 
+<Tabs syncKey="lang">
+<TabItem label="TypeScript">
 ```typescript
 import { trace } from '@opentelemetry/api'
 
@@ -246,6 +529,99 @@ export const unitAdapter = adapt(pricing, {
   // assertions unchanged...
 })
 ```
+</TabItem>
+<TabItem label="Python">
+```python
+from opentelemetry import trace
+
+tracer = trace.get_tracer("pricing-service")
+trace.set_tracer_provider(provider)
+
+unit_adapter = adapt(pricing,
+    protocol=protocol,
+    actions={
+        "add_line_item": lambda ctx, p: _add_line_item(ctx, p),
+    },
+    queries={
+        "invoice_total": lambda ctx: _invoice_total(ctx),
+        "applied_discount": lambda ctx: calculate(ctx).discount_pct,
+    },
+)
+
+def _add_line_item(ctx, item):
+    with tracer.start_as_current_span("pricing.add-line-item") as span:
+        span.set_attribute("product.name", item.product)
+        ctx.items.append(item)
+
+def _invoice_total(ctx):
+    with tracer.start_as_current_span("pricing.invoice-total"):
+        return calculate(ctx).total
+```
+</TabItem>
+<TabItem label="Ruby">
+```ruby
+tracer = OpenTelemetry.tracer_provider.tracer("pricing-service")
+
+unit_adapter = Aver.adapt(pricing,
+  protocol: protocol,
+  actions: {
+    add_line_item: ->(ctx, item) {
+      tracer.in_span("pricing.add-line-item") do |span|
+        span.set_attribute("product.name", item[:product])
+        ctx[:items] << item
+      end
+    },
+  },
+  queries: {
+    invoice_total: ->(ctx) {
+      tracer.in_span("pricing.invoice-total") { calculate(ctx).total }
+    },
+  },
+)
+```
+</TabItem>
+<TabItem label="Go">
+```go
+tracer := otel.Tracer("pricing-service")
+
+// In the adapter actions:
+func (a *adapter) AddLineItem(ctx context.Context, item AddLineItemPayload) error {
+    _, span := tracer.Start(ctx, "pricing.add-line-item")
+    defer span.End()
+    span.SetAttributes(attribute.String("product.name", item.Product))
+    a.items = append(a.items, item)
+    return nil
+}
+```
+</TabItem>
+<TabItem label="Rust">
+```rust
+let tracer = global::tracer("pricing-service");
+
+// In the adapter actions:
+async fn add_line_item(ctx: &mut Ctx, item: AddLineItemPayload) -> Result<()> {
+    let span = tracer.start("pricing.add-line-item");
+    span.set_attribute(KeyValue::new("product.name", item.product.clone()));
+    ctx.items.push(item);
+    span.end();
+    Ok(())
+}
+```
+</TabItem>
+<TabItem label="Kotlin">
+```kotlin
+val tracer = GlobalOpenTelemetry.getTracer("pricing-service")
+
+// In the adapter actions:
+override suspend fun addLineItem(ctx: Ctx, item: AddLineItemPayload) {
+    val span = tracer.spanBuilder("pricing.add-line-item").startSpan()
+    span.setAttribute("product.name", item.product)
+    ctx.items.add(item)
+    span.end()
+}
+```
+</TabItem>
+</Tabs>
 
 Run again:
 
