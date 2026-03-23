@@ -25,27 +25,133 @@ Every project of sufficient complexity eventually builds a domain language for i
 
 Three test files, three vocabularies, same behavior:
 
-```typescript
-// Unit test
-test('create task', () => {
-  board.create('Fix bug')
-  expect(board.get('Fix bug').status).toBe('backlog')
-})
-
-// API test
-test('create task', async () => {
-  await request(app).post('/tasks').send({ title: 'Fix bug' })
-  const res = await request(app).get('/tasks/Fix bug')
-  expect(res.body.status).toBe('backlog')
-})
-
-// Browser test
-test('create task', async ({ page }) => {
-  await page.fill('[data-test=new-task]', 'Fix bug')
-  await page.click('[data-test=create]')
-  await expect(page.locator('[data-test=task-Fix-bug]')).toBeVisible()
-})
-```
+<Tabs syncKey="lang">
+  <TabItem label="TypeScript">
+    ```typescript
+    // Unit test
+    test('create task', () => {
+      board.create('Fix bug')
+      expect(board.get('Fix bug').status).toBe('backlog')
+    })
+    // API test
+    test('create task', async () => {
+      await request(app).post('/tasks').send({ title: 'Fix bug' })
+      const res = await request(app).get('/tasks/Fix bug')
+      expect(res.body.status).toBe('backlog')
+    })
+    // Browser test
+    test('create task', async ({ page }) => {
+      await page.fill('[data-test=new-task]', 'Fix bug')
+      await page.click('[data-test=create]')
+      await expect(page.locator('[data-test=task-Fix-bug]')).toBeVisible()
+    })
+    ```
+  </TabItem>
+  <TabItem label="Python">
+    ```python
+    # Unit test
+    def test_create_task():
+        board.create("Fix bug")
+        assert board.get("Fix bug").status == "backlog"
+    # API test
+    def test_create_task(client):
+        client.post("/tasks", json={"title": "Fix bug"})
+        res = client.get("/tasks/Fix bug")
+        assert res.json()["status"] == "backlog"
+    # Browser test
+    def test_create_task(page):
+        page.fill("[data-test=new-task]", "Fix bug")
+        page.click("[data-test=create]")
+        expect(page.locator("[data-test=task-Fix-bug]")).to_be_visible()
+    ```
+  </TabItem>
+  <TabItem label="Ruby">
+    ```ruby
+    # Unit test
+    it "creates a task" do
+      board.create("Fix bug")
+      expect(board.get("Fix bug")[:status]).to eq("backlog")
+    end
+    # API test
+    it "creates a task" do
+      post "/tasks", title: "Fix bug"
+      get "/tasks/Fix bug"
+      expect(json_response[:status]).to eq("backlog")
+    end
+    # Browser test
+    it "creates a task", js: true do
+      fill_in "data-test-new-task", with: "Fix bug"
+      click_button "Create"
+      expect(page).to have_css("[data-test=task-Fix-bug]")
+    end
+    ```
+  </TabItem>
+  <TabItem label="Go">
+    ```go
+    // Unit test
+    func TestCreateTask(t *testing.T) {
+        board.Create("Fix bug")
+        assert.Equal(t, "backlog", board.Get("Fix bug").Status)
+    }
+    // API test
+    func TestCreateTask(t *testing.T) {
+        resp, _ := http.Post(srv+"/tasks", "application/json", body)
+        task := getTask(srv, "Fix bug")
+        assert.Equal(t, "backlog", task.Status)
+    }
+    // Browser test — chromedp or rod
+    func TestCreateTask(t *testing.T) {
+        chromedp.Run(ctx, chromedp.SendKeys("#new-task", "Fix bug"),
+            chromedp.Click("#create"), chromedp.WaitVisible("[data-test=task-Fix-bug]"))
+    }
+    ```
+  </TabItem>
+  <TabItem label="Rust">
+    ```rust
+    // Unit test
+    #[test]
+    fn create_task() {
+        board.create("Fix bug");
+        assert_eq!(board.get("Fix bug").status, "backlog");
+    }
+    // API test
+    #[test]
+    fn create_task() {
+        client.post("/tasks").json(&json!({"title": "Fix bug"})).send();
+        let task: Task = client.get("/tasks/Fix bug").send().json();
+        assert_eq!(task.status, "backlog");
+    }
+    // Browser test — thirtyfour or fantoccini
+    #[test]
+    fn create_task() {
+        driver.find(By::Css("[data-test=new-task]")).send_keys("Fix bug");
+        driver.find(By::Css("[data-test=create]")).click();
+        driver.find(By::Css("[data-test=task-Fix-bug]")).wait_until().displayed();
+    }
+    ```
+  </TabItem>
+  <TabItem label="Kotlin">
+    ```kotlin
+    // Unit test
+    @Test fun `create task`() {
+        board.create("Fix bug")
+        assertEquals("backlog", board.get("Fix bug").status)
+    }
+    // API test
+    @Test fun `create task`() {
+        client.post("/tasks") { setBody("""{"title":"Fix bug"}""") }
+        val task = client.get("/tasks/Fix bug").body<Task>()
+        assertEquals("backlog", task.status)
+    }
+    // Browser test — Selenium/Playwright
+    @Test fun `create task`() {
+        page.fill("[data-test=new-task]", "Fix bug")
+        page.click("[data-test=create]")
+        assertThat(page.locator("[data-test=task-Fix-bug]")).isVisible()
+    }
+    ```
+  </TabItem>
+</Tabs>
 
 One test, every level:
 
