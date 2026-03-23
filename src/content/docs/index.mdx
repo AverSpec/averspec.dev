@@ -17,6 +17,8 @@ hero:
       icon: external
 ---
 
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
 Every project of sufficient complexity eventually builds a domain language for its tests. Aver gives that language a home in the type system.
 
 ## What it looks like
@@ -47,14 +49,65 @@ test('create task', async ({ page }) => {
 
 One test, every level:
 
-```typescript
-const { test } = suite(taskBoard)
+<Tabs>
+  <TabItem label="TypeScript">
+    ```typescript
+    const { test } = suite(taskBoard)
 
-test('create a task in backlog', async ({ when, then }) => {
-  await when.createTask({ title: 'Fix bug' })
-  await then.taskInStatus({ title: 'Fix bug', status: 'backlog' })
-})
-```
+    test('create a task in backlog', async ({ when, then }) => {
+      await when.createTask({ title: 'Fix bug' })
+      await then.taskInStatus({ title: 'Fix bug', status: 'backlog' })
+    })
+    ```
+  </TabItem>
+  <TabItem label="Python">
+    ```python
+    s = suite(TaskBoard)
+
+    @s.test
+    def test_create_task_in_backlog(ctx):
+        ctx.when.create_task(title="Fix bug")
+        ctx.then.task_in_status(title="Fix bug", status="backlog")
+    ```
+  </TabItem>
+  <TabItem label="Ruby">
+    ```ruby
+    RSpec.describe TaskBoard do
+      it "creates a task in backlog" do
+        ctx.when.create_task(title: "Fix bug")
+        ctx.then.task_in_status(title: "Fix bug", status: "backlog")
+      end
+    end
+    ```
+  </TabItem>
+  <TabItem label="Go">
+    ```go
+    func TestCreateTask(t *testing.T) {
+        suite.Run(t, "create task", func(ctx *aver.TestContext[TaskBoard]) {
+            aver.When(ctx, TaskBoard.CreateTask, CreateTaskPayload{Title: "Fix bug"})
+            aver.Then(ctx, TaskBoard.TaskInStatus, StatusPayload{Title: "Fix bug", Status: "backlog"})
+        })
+    }
+    ```
+  </TabItem>
+  <TabItem label="Rust">
+    ```rust
+    suite.run("create task", |m, tc| {
+        tc.when(&m.create_task, CreateTaskPayload { title: "Fix bug".into() });
+        tc.then(&m.task_in_status, StatusPayload { title: "Fix bug".into(), status: "backlog".into() });
+    });
+    ```
+  </TabItem>
+  <TabItem label="Kotlin">
+    ```kotlin
+    @Test
+    fun `create task in backlog`() = s.run { ctx ->
+        ctx.act(domain.createTask, "Fix bug")
+        ctx.then(domain.taskInStatus, TaskStatus("Fix bug", "backlog"))
+    }
+    ```
+  </TabItem>
+</Tabs>
 
 ```
  ✓ create a task in backlog [unit]          3ms
@@ -77,11 +130,52 @@ Working on business logic? `aver run --adapter unit`. Touching the API layer? `-
 
 ## Quick start
 
-```bash
-npm install --save-dev @averspec/core vitest
-npx aver init
-npx aver run
-```
+<Tabs>
+  <TabItem label="TypeScript">
+    ```bash
+    npm install --save-dev @averspec/core vitest
+    npx aver init
+    npx aver run
+    ```
+  </TabItem>
+  <TabItem label="Python">
+    ```bash
+    pip install averspec
+    aver init
+    aver run
+    ```
+  </TabItem>
+  <TabItem label="Ruby">
+    ```bash
+    gem install averspec
+    aver init
+    aver run
+    ```
+  </TabItem>
+  <TabItem label="Go">
+    ```bash
+    go get github.com/averspec/aver-go
+    # Define domain, adapter, and test in Go files
+    go test ./...
+    ```
+  </TabItem>
+  <TabItem label="Rust">
+    ```bash
+    cargo add averspec --dev
+    # Define domain, adapter, and test in Rust files
+    cargo test
+    ```
+  </TabItem>
+  <TabItem label="Kotlin">
+    ```kotlin
+    // build.gradle.kts
+    testImplementation("dev.averspec:aver-jvm:0.1.0")
+    ```
+    ```bash
+    ./gradlew test
+    ```
+  </TabItem>
+</Tabs>
 
 Or follow a tutorial: [legacy code](/tutorial/), [greenfield](/tutorial-greenfield/), or [telemetry verification](/tutorial-telemetry/).
 
