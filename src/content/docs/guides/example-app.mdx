@@ -1,0 +1,624 @@
+---
+title: "Example App"
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+The [`examples/task-board`](https://github.com/averspec/aver/tree/main/examples/task-board) directory contains a complete task board application tested with Aver across three adapters. It demonstrates the full three-layer architecture with a React frontend, Express API, and in-memory model.
+
+## The App
+
+A simple Kanban board with columns (backlog, in-progress, done) that supports creating, moving, assigning, and deleting tasks.
+
+**Stack:** React 19, Express 5, TypeScript, Vite
+
+## Domain Definition
+
+The domain declares the testing vocabulary — what the task board does, independent of how:
+
+<Tabs>
+  <TabItem label="TypeScript">
+    ```typescript
+    export const taskBoard = defineDomain({
+      name: 'task-board',
+      actions: {
+        createTask: action<{ title: string; status?: string }>(),
+        deleteTask: action<{ title: string }>(),
+        moveTask: action<{ title: string; status: string }>(),
+        assignTask: action<{ title: string; assignee: string }>(),
+      },
+      queries: {
+        tasksByStatus: query<{ status: string }, Task[]>(),
+        taskDetails: query<{ title: string }, Task | undefined>(),
+      },
+      assertions: {
+        taskInStatus: assertion<{ title: string; status: string }>(),
+        taskAssignedTo: assertion<{ title: string; assignee: string }>(),
+        taskCount: assertion<{ status: string; count: number }>(),
+      },
+    })
+    ```
+  </TabItem>
+  <TabItem label="Python">
+    ```python
+    @domain("task-board")
+    class TaskBoard:
+        create_task = action(str, str)        # title, status?
+        delete_task = action(str)             # title
+        move_task = action(str, str)          # title, status
+        assign_task = action(str, str)        # title, assignee
+        tasks_by_status = query(str, list)    # status -> [Task]
+        task_details = query(str, Task)       # title -> Task
+        task_in_status = assertion(str, str)  # title, status
+        task_assigned_to = assertion(str, str)  # title, assignee
+        task_count = assertion(str, int)      # status, count
+    ```
+  </TabItem>
+  <TabItem label="Ruby">
+    ```ruby
+    class TaskBoard < Aver::Domain
+      domain_name "task-board"
+
+      action :create_task      # title, status?
+      action :delete_task      # title
+      action :move_task        # title, status
+      action :assign_task      # title, assignee
+      query  :tasks_by_status  # status -> [Task]
+      query  :task_details     # title -> Task
+      assertion :task_in_status    # title, status
+      assertion :task_assigned_to  # title, assignee
+      assertion :task_count        # status, count
+    end
+    ```
+  </TabItem>
+  <TabItem label="Go">
+    ```go
+    type TaskBoardDomain struct {
+        CreateTask     aver.Action[CreateTaskParams]
+        DeleteTask     aver.Action[DeleteTaskParams]
+        MoveTask       aver.Action[MoveTaskParams]
+        AssignTask     aver.Action[AssignTaskParams]
+        TasksByStatus  aver.Query[StatusParams, []Task]
+        TaskDetails    aver.Query[TitleParams, *Task]
+        TaskInStatus   aver.Assertion[TaskInStatusParams]
+        TaskAssignedTo aver.Assertion[TaskAssignedToParams]
+        TaskCount      aver.Assertion[TaskCountParams]
+    }
+
+    var TaskBoard = aver.NewDomain[TaskBoardDomain]("task-board")
+    ```
+  </TabItem>
+  <TabItem label="Rust">
+    ```rust
+    aver_domain! {
+        name: "task-board",
+        struct TaskBoard {
+            create_task: Action<CreateTaskParams>,
+            delete_task: Action<DeleteTaskParams>,
+            move_task: Action<MoveTaskParams>,
+            assign_task: Action<AssignTaskParams>,
+            tasks_by_status: Query<StatusParams, Vec<Task>>,
+            task_details: Query<TitleParams, Option<Task>>,
+            task_in_status: Assertion<TaskInStatusParams>,
+            task_assigned_to: Assertion<TaskAssignedToParams>,
+            task_count: Assertion<TaskCountParams>,
+        }
+    }
+    ```
+  </TabItem>
+  <TabItem label="Kotlin">
+    ```kotlin
+    val taskBoard = domain("task-board") {
+        action<CreateTaskParams>("createTask")
+        action<DeleteTaskParams>("deleteTask")
+        action<MoveTaskParams>("moveTask")
+        action<AssignTaskParams>("assignTask")
+        query<StatusParams, List<Task>>("tasksByStatus")
+        query<TitleParams, Task?>("taskDetails")
+        assertion<TaskInStatusParams>("taskInStatus")
+        assertion<TaskAssignedToParams>("taskAssignedTo")
+        assertion<TaskCountParams>("taskCount")
+    }
+    ```
+  </TabItem>
+</Tabs>
+
+## Three Adapters
+
+### Unit Adapter
+
+Tests the `Board` class directly. Sub-millisecond execution.
+
+<Tabs>
+  <TabItem label="TypeScript">
+    ```typescript
+    const unitAdapter = adapt(taskBoard, {
+      protocol: unit(() => new Board()),
+      actions: {
+        createTask: async (board, { title, status }) => board.create(title, status),
+        deleteTask: async (board, { title }) => board.delete(title),
+        moveTask: async (board, { title, status }) => board.move(title, status),
+        // ...
+      },
+      // ...
+    })
+    ```
+  </TabItem>
+  <TabItem label="Python">
+    ```python
+    adapter = implement(TaskBoard, protocol=unit(lambda: Board()))
+
+    @adapter.handle(TaskBoard.create_task)
+    def create_task(board, title, status=None):
+        board.create(title, status)
+
+    @adapter.handle(TaskBoard.delete_task)
+    def delete_task(board, title):
+        board.delete(title)
+
+    @adapter.handle(TaskBoard.move_task)
+    def move_task(board, title, status):
+        board.move(title, status)
+    # ...
+    ```
+  </TabItem>
+  <TabItem label="Ruby">
+    ```ruby
+    class TaskBoardUnit < Aver::Adapter
+      domain TaskBoard
+      protocol :unit, -> { Board.new }
+
+      def create_task(board, title:, status: nil)
+        board.create(title, status)
+      end
+
+      def delete_task(board, title:)
+        board.delete(title)
+      end
+
+      def move_task(board, title:, status:)
+        board.move(title, status)
+      end
+      # ...
+    end
+    ```
+  </TabItem>
+  <TabItem label="Go">
+    ```go
+    unitAdapter := aver.Implement(TaskBoard, aver.Unit(func() *Board {
+        return NewBoard()
+    }), func(h *aver.Handlers[*Board]) {
+        aver.OnAction(h, TaskBoard.CreateTask, func(board *Board, p CreateTaskParams) error {
+            return board.Create(p.Title, p.Status)
+        })
+        aver.OnAction(h, TaskBoard.DeleteTask, func(board *Board, p DeleteTaskParams) error {
+            return board.Delete(p.Title)
+        })
+        // ...
+    })
+    ```
+  </TabItem>
+  <TabItem label="Rust">
+    ```rust
+    let unit_adapter = AdapterBuilder::new(TaskBoard, unit(|| Board::new()))
+        .on_action(&m.create_task, |board, p| board.create(&p.title, p.status.as_deref()))
+        .on_action(&m.delete_task, |board, p| board.delete(&p.title))
+        .on_action(&m.move_task, |board, p| board.move_task(&p.title, &p.status))
+        // ...
+        .build();
+    ```
+  </TabItem>
+  <TabItem label="Kotlin">
+    ```kotlin
+    val unitAdapter = implement(taskBoard, UnitProtocol { Board() }) {
+        onAction(taskBoard.createTask) { board, p -> board.create(p.title, p.status) }
+        onAction(taskBoard.deleteTask) { board, p -> board.delete(p.title) }
+        onAction(taskBoard.moveTask) { board, p -> board.move(p.title, p.status) }
+        // ...
+    }
+    ```
+  </TabItem>
+</Tabs>
+
+### HTTP Adapter
+
+Tests the Express API via fetch. Spins up a server per test on a random port.
+
+<Tabs>
+  <TabItem label="TypeScript">
+    ```typescript
+    const httpAdapter = adapt(taskBoard, {
+      protocol: httpProtocol,  // custom protocol wrapping http()
+      actions: {
+        createTask: async (ctx, { title, status }) => {
+          await ctx.post('/api/tasks', { title, status })
+        },
+        deleteTask: async (ctx, { title }) => {
+          await ctx.delete(`/api/tasks/${encodeURIComponent(title)}`)
+        },
+        // ...
+      },
+      // ...
+    })
+    ```
+  </TabItem>
+  <TabItem label="Python">
+    ```python
+    adapter = implement(TaskBoard, protocol=http_protocol)
+
+    @adapter.handle(TaskBoard.create_task)
+    def create_task(ctx, title, status=None):
+        ctx.post("/api/tasks", json={"title": title, "status": status})
+
+    @adapter.handle(TaskBoard.delete_task)
+    def delete_task(ctx, title):
+        ctx.delete(f"/api/tasks/{title}")
+    # ...
+    ```
+  </TabItem>
+  <TabItem label="Ruby">
+    ```ruby
+    class TaskBoardHttp < Aver::Adapter
+      domain TaskBoard
+      protocol :http, base_url: "http://localhost:3000"
+
+      def create_task(ctx, title:, status: nil)
+        ctx.post("/api/tasks", { title: title, status: status })
+      end
+
+      def delete_task(ctx, title:)
+        ctx.delete("/api/tasks/#{title}")
+      end
+      # ...
+    end
+    ```
+  </TabItem>
+  <TabItem label="Go">
+    ```go
+    httpAdapter := aver.Implement(TaskBoard, httpProto, func(h *aver.Handlers[*http.Client]) {
+        aver.OnAction(h, TaskBoard.CreateTask, func(ctx *http.Client, p CreateTaskParams) error {
+            return ctx.Post("/api/tasks", map[string]string{"title": p.Title, "status": p.Status})
+        })
+        aver.OnAction(h, TaskBoard.DeleteTask, func(ctx *http.Client, p DeleteTaskParams) error {
+            return ctx.Delete("/api/tasks/" + p.Title)
+        })
+        // ...
+    })
+    ```
+  </TabItem>
+  <TabItem label="Rust">
+    ```rust
+    let http_adapter = AdapterBuilder::new(TaskBoard, http_protocol)
+        .on_action(&m.create_task, |ctx, p| {
+            ctx.post("/api/tasks", &json!({ "title": p.title, "status": p.status }));
+        })
+        .on_action(&m.delete_task, |ctx, p| {
+            ctx.delete(&format!("/api/tasks/{}", p.title));
+        })
+        // ...
+        .build();
+    ```
+  </TabItem>
+  <TabItem label="Kotlin">
+    ```kotlin
+    val httpAdapter = implement(taskBoard, httpProtocol) {
+        onAction(taskBoard.createTask) { ctx, p -> ctx.post("/api/tasks", mapOf("title" to p.title, "status" to p.status)) }
+        onAction(taskBoard.deleteTask) { ctx, p -> ctx.delete("/api/tasks/${p.title}") }
+        // ...
+    }
+    ```
+  </TabItem>
+</Tabs>
+
+### Playwright Adapter
+
+Tests the React UI in a headless Chromium browser. Serves the built frontend.
+
+<Tabs>
+  <TabItem label="TypeScript">
+    ```typescript
+    const playwrightAdapter = adapt(taskBoard, {
+      protocol: playwrightProtocol,  // launches browser + Express server
+      actions: {
+        createTask: async (page, { title }) => {
+          await page.getByTestId('new-task-title').fill(title)
+          await page.getByTestId('create-task-btn').click()
+          await page.getByTestId(`task-${title}`).waitFor()
+        },
+        deleteTask: async (page, { title }) => {
+          await page.getByTestId(`task-${title}`).getByTestId('delete-btn').click()
+          await page.getByTestId(`task-${title}`).waitFor({ state: 'detached' })
+        },
+        // ...
+      },
+      // ...
+    })
+    ```
+  </TabItem>
+  <TabItem label="Python">
+    ```python
+    adapter = implement(TaskBoard, protocol=playwright_protocol)
+
+    @adapter.handle(TaskBoard.create_task)
+    def create_task(page, title):
+        page.get_by_test_id("new-task-title").fill(title)
+        page.get_by_test_id("create-task-btn").click()
+        page.get_by_test_id(f"task-{title}").wait_for()
+
+    @adapter.handle(TaskBoard.delete_task)
+    def delete_task(page, title):
+        page.get_by_test_id(f"task-{title}").get_by_test_id("delete-btn").click()
+        page.get_by_test_id(f"task-{title}").wait_for(state="detached")
+    # ...
+    ```
+  </TabItem>
+  <TabItem label="Ruby">
+    ```ruby
+    class TaskBoardPlaywright < Aver::Adapter
+      domain TaskBoard
+      protocol :playwright
+
+      def create_task(page, title:)
+        page.get_by_test_id("new-task-title").fill(title)
+        page.get_by_test_id("create-task-btn").click
+        page.get_by_test_id("task-#{title}").wait_for
+      end
+
+      def delete_task(page, title:)
+        page.get_by_test_id("task-#{title}").get_by_test_id("delete-btn").click
+        page.get_by_test_id("task-#{title}").wait_for(state: "detached")
+      end
+      # ...
+    end
+    ```
+  </TabItem>
+  <TabItem label="Go">
+    ```go
+    pwAdapter := aver.Implement(TaskBoard, playwrightProto, func(h *aver.Handlers[playwright.Page]) {
+        aver.OnAction(h, TaskBoard.CreateTask, func(page playwright.Page, p CreateTaskParams) error {
+            page.GetByTestId("new-task-title").Fill(p.Title)
+            page.GetByTestId("create-task-btn").Click()
+            page.GetByTestId("task-" + p.Title).WaitFor()
+            return nil
+        })
+        aver.OnAction(h, TaskBoard.DeleteTask, func(page playwright.Page, p DeleteTaskParams) error {
+            page.GetByTestId("task-" + p.Title).GetByTestId("delete-btn").Click()
+            page.GetByTestId("task-" + p.Title).WaitFor(playwright.WaitForOpts{State: "detached"})
+            return nil
+        })
+        // ...
+    })
+    ```
+  </TabItem>
+  <TabItem label="Rust">
+    ```rust
+    let pw_adapter = AdapterBuilder::new(TaskBoard, playwright_protocol)
+        .on_action(&m.create_task, |page, p| {
+            page.get_by_test_id("new-task-title").fill(&p.title);
+            page.get_by_test_id("create-task-btn").click();
+            page.get_by_test_id(&format!("task-{}", p.title)).wait_for();
+        })
+        .on_action(&m.delete_task, |page, p| {
+            page.get_by_test_id(&format!("task-{}", p.title))
+                .get_by_test_id("delete-btn").click();
+            page.get_by_test_id(&format!("task-{}", p.title))
+                .wait_for_state("detached");
+        })
+        // ...
+        .build();
+    ```
+  </TabItem>
+  <TabItem label="Kotlin">
+    ```kotlin
+    val pwAdapter = implement(taskBoard, playwrightProtocol) {
+        onAction(taskBoard.createTask) { page, p ->
+            page.getByTestId("new-task-title").fill(p.title)
+            page.getByTestId("create-task-btn").click()
+            page.getByTestId("task-${p.title}").waitFor()
+        }
+        onAction(taskBoard.deleteTask) { page, p ->
+            page.getByTestId("task-${p.title}").getByTestId("delete-btn").click()
+            page.getByTestId("task-${p.title}").waitFor(WaitForOptions(state = "detached"))
+        }
+        // ...
+    }
+    ```
+  </TabItem>
+</Tabs>
+
+## The Tests
+
+The test file is protocol-agnostic. Every test runs against all three adapters automatically:
+
+<Tabs>
+  <TabItem label="TypeScript">
+    ```typescript
+    const { test } = suite(taskBoard)
+
+    test('create a task in backlog', async ({ act, assert }) => {
+      await act.createTask({ title: 'Fix login bug' })
+      await assert.taskInStatus({ title: 'Fix login bug', status: 'backlog' })
+      await assert.taskCount({ status: 'backlog', count: 1 })
+    })
+
+    test('delete a task', async ({ act, assert }) => {
+      await act.createTask({ title: 'Stale task' })
+      await assert.taskCount({ status: 'backlog', count: 1 })
+      await act.deleteTask({ title: 'Stale task' })
+      await assert.taskCount({ status: 'backlog', count: 0 })
+    })
+
+    test('track full task lifecycle', async ({ act, query }) => {
+      await act.createTask({ title: 'Fix login bug' })
+      await act.assignTask({ title: 'Fix login bug', assignee: 'Alice' })
+      await act.moveTask({ title: 'Fix login bug', status: 'in-progress' })
+
+      const task = await query.taskDetails({ title: 'Fix login bug' })
+      expect(task?.status).toBe('in-progress')
+      expect(task?.assignee).toBe('Alice')
+    })
+    ```
+  </TabItem>
+  <TabItem label="Python">
+    ```python
+    s = suite(TaskBoard)
+
+    @s.test
+    def test_create_a_task_in_backlog(ctx):
+        ctx.act.create_task(title="Fix login bug")
+        ctx.assert_.task_in_status(title="Fix login bug", status="backlog")
+        ctx.assert_.task_count(status="backlog", count=1)
+
+    @s.test
+    def test_delete_a_task(ctx):
+        ctx.act.create_task(title="Stale task")
+        ctx.assert_.task_count(status="backlog", count=1)
+        ctx.act.delete_task(title="Stale task")
+        ctx.assert_.task_count(status="backlog", count=0)
+
+    @s.test
+    def test_track_full_task_lifecycle(ctx):
+        ctx.act.create_task(title="Fix login bug")
+        ctx.act.assign_task(title="Fix login bug", assignee="Alice")
+        ctx.act.move_task(title="Fix login bug", status="in-progress")
+
+        task = ctx.query.task_details(title="Fix login bug")
+        assert task.status == "in-progress"
+        assert task.assignee == "Alice"
+    ```
+  </TabItem>
+  <TabItem label="Ruby">
+    ```ruby
+    s = Aver.suite(TaskBoard)
+
+    s.test "create a task in backlog" do |ctx|
+      ctx.act.create_task(title: "Fix login bug")
+      ctx.assert.task_in_status(title: "Fix login bug", status: "backlog")
+      ctx.assert.task_count(status: "backlog", count: 1)
+    end
+
+    s.test "delete a task" do |ctx|
+      ctx.act.create_task(title: "Stale task")
+      ctx.assert.task_count(status: "backlog", count: 1)
+      ctx.act.delete_task(title: "Stale task")
+      ctx.assert.task_count(status: "backlog", count: 0)
+    end
+
+    s.test "track full task lifecycle" do |ctx|
+      ctx.act.create_task(title: "Fix login bug")
+      ctx.act.assign_task(title: "Fix login bug", assignee: "Alice")
+      ctx.act.move_task(title: "Fix login bug", status: "in-progress")
+
+      task = ctx.query.task_details(title: "Fix login bug")
+      expect(task.status).to eq("in-progress")
+      expect(task.assignee).to eq("Alice")
+    end
+    ```
+  </TabItem>
+  <TabItem label="Go">
+    ```go
+    s := aver.NewSuite(TaskBoard)
+
+    s.Run(t, "create a task in backlog", func(ctx aver.TestCtx) {
+        aver.Act(ctx, TaskBoard.CreateTask, CreateTaskParams{Title: "Fix login bug"})
+        aver.Assert(ctx, TaskBoard.TaskInStatus, TaskInStatusParams{Title: "Fix login bug", Status: "backlog"})
+        aver.Assert(ctx, TaskBoard.TaskCount, TaskCountParams{Status: "backlog", Count: 1})
+    })
+
+    s.Run(t, "delete a task", func(ctx aver.TestCtx) {
+        aver.Act(ctx, TaskBoard.CreateTask, CreateTaskParams{Title: "Stale task"})
+        aver.Assert(ctx, TaskBoard.TaskCount, TaskCountParams{Status: "backlog", Count: 1})
+        aver.Act(ctx, TaskBoard.DeleteTask, DeleteTaskParams{Title: "Stale task"})
+        aver.Assert(ctx, TaskBoard.TaskCount, TaskCountParams{Status: "backlog", Count: 0})
+    })
+    ```
+  </TabItem>
+  <TabItem label="Rust">
+    ```rust
+    let s = suite(TaskBoard);
+
+    s.run("create a task in backlog", |m, ctx| {
+        ctx.act(&m.create_task, CreateTaskParams { title: "Fix login bug".into() });
+        ctx.assert(&m.task_in_status, TaskInStatusParams { title: "Fix login bug".into(), status: "backlog".into() });
+        ctx.assert(&m.task_count, TaskCountParams { status: "backlog".into(), count: 1 });
+    });
+
+    s.run("delete a task", |m, ctx| {
+        ctx.act(&m.create_task, CreateTaskParams { title: "Stale task".into() });
+        ctx.assert(&m.task_count, TaskCountParams { status: "backlog".into(), count: 1 });
+        ctx.act(&m.delete_task, DeleteTaskParams { title: "Stale task".into() });
+        ctx.assert(&m.task_count, TaskCountParams { status: "backlog".into(), count: 0 });
+    });
+    ```
+  </TabItem>
+  <TabItem label="Kotlin">
+    ```kotlin
+    val s = suite(taskBoard)
+
+    @Test fun `create a task in backlog`() = s.run { ctx ->
+        ctx.Act(taskBoard.createTask, CreateTaskParams("Fix login bug"))
+        ctx.Assert(taskBoard.taskInStatus, TaskInStatusParams("Fix login bug", "backlog"))
+        ctx.Assert(taskBoard.taskCount, TaskCountParams("backlog", 1))
+    }
+
+    @Test fun `delete a task`() = s.run { ctx ->
+        ctx.Act(taskBoard.createTask, CreateTaskParams("Stale task"))
+        ctx.Assert(taskBoard.taskCount, TaskCountParams("backlog", 1))
+        ctx.Act(taskBoard.deleteTask, DeleteTaskParams("Stale task"))
+        ctx.Assert(taskBoard.taskCount, TaskCountParams("backlog", 0))
+    }
+    ```
+  </TabItem>
+</Tabs>
+
+## Running It
+
+```bash
+# All adapters
+npx aver run
+
+# Single adapter
+npx aver run --adapter unit
+npx aver run --adapter http
+npx aver run --adapter playwright
+```
+
+Output (all adapters):
+
+```
+ ✓ create a task in backlog [unit]            1ms
+ ✓ create a task in backlog [http]           57ms
+ ✓ create a task in backlog [playwright]   2808ms
+ ✓ move task through workflow [unit]          1ms
+ ✓ move task through workflow [http]         15ms
+ ✓ move task through workflow [playwright]  395ms
+ ✓ assign task to team member [unit]          0ms
+ ✓ assign task to team member [http]         13ms
+ ✓ assign task to team member [playwright]  403ms
+ ✓ delete a task [unit]                       0ms
+ ✓ delete a task [http]                       8ms
+ ✓ delete a task [playwright]               371ms
+ ✓ track full task lifecycle [unit]           1ms
+ ✓ track full task lifecycle [http]          14ms
+ ✓ track full task lifecycle [playwright]   440ms
+
+ Tests  15 passed (15)
+```
+
+## Project Structure
+
+```
+examples/task-board/
+  aver.config.ts              # Registers all 3 adapters
+  domains/task-board.ts       # Domain definition
+  adapters/
+    task-board.unit.ts        # Unit adapter (Board class)
+    task-board.http.ts        # HTTP adapter (Express API)
+    task-board.playwright.ts  # Playwright adapter (React UI)
+  tests/task-board.spec.ts    # Tests (protocol-agnostic)
+  src/
+    server/board.ts           # Board model
+    server/routes.ts          # Express routes
+    server/index.ts           # Server entry point
+    app/App.tsx               # React frontend
+```

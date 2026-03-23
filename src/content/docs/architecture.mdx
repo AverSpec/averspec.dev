@@ -2,6 +2,8 @@
 title: "Architecture"
 ---
 
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
 Aver implements a three-layer acceptance testing architecture inspired by [Dave Farley's four-layer model](https://www.youtube.com/watch?v=JDD5EEJgpHU) and the [Screenplay pattern](https://serenity-js.org/handbook/design/screenplay-pattern/) from Serenity.js.
 
 The name "aver" means "to declare with confidence" — your tests aver that the system behaves as intended.
@@ -40,6 +42,89 @@ Actions perform operations. Queries extract data. Assertions verify expectations
 
 Assertions could be expressed as query + expect, but they earn their place because they express intent in domain language, enable protocol-optimized checks (Playwright's auto-waiting vs manual polling), and produce better traces on failure.
 
+Here's what a domain definition looks like:
+
+<Tabs>
+  <TabItem label="TypeScript">
+    ```typescript
+    import { defineDomain, action, query, assertion } from '@averspec/core'
+
+    export const taskBoard = defineDomain({
+      name: 'task-board',
+      actions: {
+        createTask: action<{ title: string }>(),
+        moveTask: action<{ title: string; status: string }>(),
+      },
+      queries: {
+        taskDetails: query<{ title: string }, Task>(),
+      },
+      assertions: {
+        taskInStatus: assertion<{ title: string; status: string }>(),
+      },
+    })
+    ```
+  </TabItem>
+  <TabItem label="Python">
+    ```python
+    from averspec import domain, action, query, assertion
+
+    @domain("task-board")
+    class TaskBoard:
+        create_task = action(str)        # title
+        move_task = action(str, str)     # title, status
+        task_details = query(str, Task)  # title -> Task
+        task_in_status = assertion(str, str)  # title, status
+    ```
+  </TabItem>
+  <TabItem label="Ruby">
+    ```ruby
+    class TaskBoard < Aver::Domain
+      domain_name "task-board"
+
+      action :create_task    # title
+      action :move_task      # title, status
+      query  :task_details   # title -> Task
+      assertion :task_in_status  # title, status
+    end
+    ```
+  </TabItem>
+  <TabItem label="Go">
+    ```go
+    type TaskBoardDomain struct {
+        CreateTask   aver.Action[CreateTaskParams]
+        MoveTask     aver.Action[MoveTaskParams]
+        TaskDetails  aver.Query[TaskDetailsParams, Task]
+        TaskInStatus aver.Assertion[TaskInStatusParams]
+    }
+
+    var TaskBoard = aver.NewDomain[TaskBoardDomain]("task-board")
+    ```
+  </TabItem>
+  <TabItem label="Rust">
+    ```rust
+    aver_domain! {
+        name: "task-board",
+        struct TaskBoard {
+            create_task: Action<CreateTaskParams>,
+            move_task: Action<MoveTaskParams>,
+            task_details: Query<TaskDetailsParams, Task>,
+            task_in_status: Assertion<TaskInStatusParams>,
+        }
+    }
+    ```
+  </TabItem>
+  <TabItem label="Kotlin">
+    ```kotlin
+    val taskBoard = domain("task-board") {
+        action<CreateTaskParams>("createTask")
+        action<MoveTaskParams>("moveTask")
+        query<TaskDetailsParams, Task>("taskDetails")
+        assertion<TaskInStatusParams>("taskInStatus")
+    }
+    ```
+  </TabItem>
+</Tabs>
+
 ### Given/When/Then
 
 Tests can use `given`, `when`, and `then` as narrative aliases for `act` and `assert`. They call the same adapter handlers — the difference is in step labeling:
@@ -75,15 +160,69 @@ You can write custom protocols for any interaction mode — WebSocket, gRPC, CLI
 
 `withFixture(protocol, { before?, after? })` wraps a protocol with setup/teardown hooks — useful when an adapter needs external infrastructure (a database, a server process) that sits outside the protocol's own context:
 
-```typescript
-import { withFixture } from '@averspec/core'
-import { http } from '@averspec/protocol-http'
+<Tabs>
+  <TabItem label="TypeScript">
+    ```typescript
+    import { withFixture } from '@averspec/core'
+    import { http } from '@averspec/protocol-http'
 
-const httpWithServer = withFixture(http({ baseUrl: 'http://localhost:3000' }), {
-  before: () => startServer(),
-  after: () => stopServer(),
-})
-```
+    const httpWithServer = withFixture(http({ baseUrl: 'http://localhost:3000' }), {
+      before: () => startServer(),
+      after: () => stopServer(),
+    })
+    ```
+  </TabItem>
+  <TabItem label="Python">
+    ```python
+    from averspec import with_fixture
+    from averspec.protocol_http import http
+
+    http_with_server = with_fixture(
+        http(base_url="http://localhost:3000"),
+        before=start_server,
+        after=stop_server,
+    )
+    ```
+  </TabItem>
+  <TabItem label="Ruby">
+    ```ruby
+    http_with_server = Aver.with_fixture(
+      Aver::Protocol::Http.new(base_url: "http://localhost:3000"),
+      before: -> { start_server },
+      after: -> { stop_server }
+    )
+    ```
+  </TabItem>
+  <TabItem label="Go">
+    ```go
+    httpWithServer := aver.WithFixture(
+        http.New("http://localhost:3000"),
+        aver.FixtureOpts{
+            Before: func() error { return startServer() },
+            After:  func() error { return stopServer() },
+        },
+    )
+    ```
+  </TabItem>
+  <TabItem label="Rust">
+    ```rust
+    let http_with_server = with_fixture(
+        http("http://localhost:3000"),
+        |_| start_server(),
+        |_| stop_server(),
+    );
+    ```
+  </TabItem>
+  <TabItem label="Kotlin">
+    ```kotlin
+    val httpWithServer = withFixture(
+        http(baseUrl = "http://localhost:3000"),
+        before = { startServer() },
+        after = { stopServer() },
+    )
+    ```
+  </TabItem>
+</Tabs>
 
 `before` runs before `protocol.setup()`. `after` runs after `protocol.teardown()`, even if teardown throws. All other protocol behavior (lifecycle hooks, telemetry) passes through unchanged.
 
@@ -105,18 +244,92 @@ You can filter adapters at runtime with `AVER_ADAPTER=unit` to run only the fast
 
 When a test scenario spans multiple bounded contexts, `suite()` accepts a named config object instead of a single domain. Each key maps to a `[domain, adapter]` tuple, and the test callback receives a context with a namespace per key:
 
-```typescript
-const { test } = suite({
-  cart: [shoppingCart, cartAdapter],
-  payments: [paymentGateway, paymentAdapter],
-})
+<Tabs>
+  <TabItem label="TypeScript">
+    ```typescript
+    const { test } = suite({
+      cart: [shoppingCart, cartAdapter],
+      payments: [paymentGateway, paymentAdapter],
+    })
 
-test('checkout charges the card', async ({ cart, payments }) => {
-  await cart.given.addItem({ name: 'Widget', qty: 1 })
-  await cart.when.checkout()
-  await payments.then.chargeRecorded({ amount: 25 })
-})
-```
+    test('checkout charges the card', async ({ cart, payments }) => {
+      await cart.given.addItem({ name: 'Widget', qty: 1 })
+      await cart.when.checkout()
+      await payments.then.chargeRecorded({ amount: 25 })
+    })
+    ```
+  </TabItem>
+  <TabItem label="Python">
+    ```python
+    s = suite({
+        "cart": (shopping_cart, cart_adapter),
+        "payments": (payment_gateway, payment_adapter),
+    })
+
+    @s.test
+    def test_checkout_charges_the_card(ctx):
+        ctx.cart.given.add_item(name="Widget", qty=1)
+        ctx.cart.when.checkout()
+        ctx.payments.then.charge_recorded(amount=25)
+    ```
+  </TabItem>
+  <TabItem label="Ruby">
+    ```ruby
+    s = Aver.suite(
+      cart: [shopping_cart, cart_adapter],
+      payments: [payment_gateway, payment_adapter]
+    )
+
+    s.test "checkout charges the card" do |ctx|
+      ctx.cart.given.add_item(name: "Widget", qty: 1)
+      ctx.cart.when.checkout
+      ctx.payments.then.charge_recorded(amount: 25)
+    end
+    ```
+  </TabItem>
+  <TabItem label="Go">
+    ```go
+    s := aver.ComposeSuite(map[string]aver.DomainAdapter{
+        "cart":     {ShoppingCart, cartAdapter},
+        "payments": {PaymentGateway, paymentAdapter},
+    })
+
+    s.Run(t, "checkout charges the card", func(ctx aver.ComposedCtx) {
+        aver.Given(ctx.NS("cart"), ShoppingCart.AddItem, AddItemParams{Name: "Widget", Qty: 1})
+        aver.When(ctx.NS("cart"), ShoppingCart.Checkout, CheckoutParams{})
+        aver.Then(ctx.NS("payments"), PaymentGateway.ChargeRecorded, ChargeParams{Amount: 25})
+    })
+    ```
+  </TabItem>
+  <TabItem label="Rust">
+    ```rust
+    let s = suite_composed! {
+        cart: (shopping_cart, cart_adapter),
+        payments: (payment_gateway, payment_adapter),
+    };
+
+    s.run("checkout charges the card", |ctx| {
+        ctx.ns("cart").given(&shopping_cart.add_item, AddItemParams { name: "Widget", qty: 1 });
+        ctx.ns("cart").when(&shopping_cart.checkout, ());
+        ctx.ns("payments").then(&payment_gateway.charge_recorded, ChargeParams { amount: 25 });
+    });
+    ```
+  </TabItem>
+  <TabItem label="Kotlin">
+    ```kotlin
+    val s = suite(
+        "cart" to (shoppingCart to cartAdapter),
+        "payments" to (paymentGateway to paymentAdapter),
+    )
+
+    @Test fun `checkout charges the card`() = s.run { ctx ->
+        ctx.ns("cart").Given(shoppingCart.addItem, AddItemParams("Widget", 1))
+        ctx.ns("cart").When(shoppingCart.checkout)
+        ctx.ns("payments").Then(paymentGateway.chargeRecorded, ChargeParams(25))
+    }
+    ```
+  </TabItem>
+</Tabs>
 
 Each domain gets its own protocol lifecycle. The shared `trace()` function on the context collects trace entries from all domains in execution order.
 
@@ -124,13 +337,60 @@ Each domain gets its own protocol lifecycle. The shared `trace()` function on th
 
 Domains can be extended with additional vocabulary for protocol-specific concerns:
 
-```typescript
-const taskBoardUI = taskBoard.extend('task-board-ui', {
-  assertions: {
-    showsLoadingSpinner: assertion(),
-  },
-})
-```
+<Tabs>
+  <TabItem label="TypeScript">
+    ```typescript
+    const taskBoardUI = taskBoard.extend('task-board-ui', {
+      assertions: {
+        showsLoadingSpinner: assertion(),
+      },
+    })
+    ```
+  </TabItem>
+  <TabItem label="Python">
+    ```python
+    @TaskBoard.extend("task-board-ui")
+    class TaskBoardUI:
+        shows_loading_spinner = assertion()
+    ```
+  </TabItem>
+  <TabItem label="Ruby">
+    ```ruby
+    class TaskBoardUI < TaskBoard
+      domain_name "task-board-ui"
+      assertion :shows_loading_spinner
+    end
+    ```
+  </TabItem>
+  <TabItem label="Go">
+    ```go
+    type TaskBoardUIDomain struct {
+        TaskBoardDomain
+        ShowsLoadingSpinner aver.Assertion[struct{}]
+    }
+
+    var TaskBoardUI = aver.ExtendDomain[TaskBoardUIDomain](TaskBoard, "task-board-ui")
+    ```
+  </TabItem>
+  <TabItem label="Rust">
+    ```rust
+    aver_extend! {
+        base: TaskBoard,
+        name: "task-board-ui",
+        struct TaskBoardUI {
+            shows_loading_spinner: Assertion<()>,
+        }
+    }
+    ```
+  </TabItem>
+  <TabItem label="Kotlin">
+    ```kotlin
+    val taskBoardUI = taskBoard.extend("task-board-ui") {
+        assertion<Unit>("showsLoadingSpinner")
+    }
+    ```
+  </TabItem>
+</Tabs>
 
 Extensions inherit all vocabulary from the parent. An adapter for the extended domain must implement everything from both the parent and the extension. This lets you write shared behavioral tests against the base domain, and protocol-specific tests against the extension.
 
@@ -167,7 +427,7 @@ This catches instrumentation bugs that behavioral tests miss: the API returns th
 ## Design principles
 
 - **Zero runtime dependencies** in core. Protocols are separate packages.
-- **TypeScript-first** — phantom types enforce that adapters implement every domain item.
+- **Type-safe** — the type system enforces that adapters implement every domain item.
 - **Adapter authors receive ready-to-use context** — protocols handle lifecycle.
 - **Tests are protocol-agnostic** — they import domains, never adapters.
 

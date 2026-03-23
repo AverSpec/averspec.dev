@@ -1,0 +1,700 @@
+---
+title: "Tutorial: Greenfield"
+---
+
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+This tutorial walks you through building a domain-driven test suite for a new feature. No legacy code, no approvals — just the clean path from domain vocabulary to multi-adapter tests. It takes about 10 minutes.
+
+You'll build a task board tested at two levels:
+1. Define a domain vocabulary in business language
+2. Write tests that speak only domain language
+3. Implement a unit adapter and see the tests pass
+4. Add an HTTP adapter — the same tests, zero changes
+
+---
+
+## Step 1: Set up the project
+
+```bash
+mkdir task-board && cd task-board
+npm init -y
+npm install --save-dev @averspec/core vitest typescript
+```
+
+Create `tsconfig.json`:
+
+```json
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ES2022",
+    "moduleResolution": "bundler",
+    "strict": true,
+    "esModuleInterop": true,
+    "outDir": "dist"
+  },
+  "include": ["**/*.ts"]
+}
+```
+
+Create `vitest.config.ts`:
+
+```typescript
+import { defineConfig } from 'vitest/config'
+
+export default defineConfig({
+  test: {
+    setupFiles: ['./aver.config.ts'],
+  },
+})
+```
+
+---
+
+## Step 2: Define the domain
+
+Before writing any implementation, name the behaviors. A task board lets you create tasks, move them between statuses, and verify where they are. Express that as a domain:
+
+<Tabs>
+  <TabItem label="TypeScript">
+    ```typescript
+    // domains/task-board.ts
+    import { defineDomain, action, assertion } from '@averspec/core'
+
+    export const taskBoard = defineDomain({
+      name: 'task-board',
+      actions: {
+        createTask: action<{ title: string }>(),
+        moveTask: action<{ title: string; status: string }>(),
+      },
+      queries: {},
+      assertions: {
+        taskInStatus: assertion<{ title: string; status: string }>(),
+        taskCount: assertion<{ status: string; count: number }>(),
+      },
+    })
+    ```
+  </TabItem>
+  <TabItem label="Python">
+    ```python
+    # domains/task_board.py
+    from averspec import domain, action, assertion
+
+    @domain("task-board")
+    class TaskBoard:
+        create_task = action(str)        # title
+        move_task = action(str, str)     # title, status
+        task_in_status = assertion(str, str)  # title, status
+        task_count = assertion(str, int)     # status, count
+    ```
+  </TabItem>
+  <TabItem label="Ruby">
+    ```ruby
+    # domains/task_board.rb
+    class TaskBoard < Aver::Domain
+      domain_name "task-board"
+
+      action :create_task    # title
+      action :move_task      # title, status
+      assertion :task_in_status  # title, status
+      assertion :task_count      # status, count
+    end
+    ```
+  </TabItem>
+  <TabItem label="Go">
+    ```go
+    // domains/taskboard.go
+    type TaskBoardDomain struct {
+        CreateTask   aver.Action[CreateTaskParams]
+        MoveTask     aver.Action[MoveTaskParams]
+        TaskInStatus aver.Assertion[TaskInStatusParams]
+        TaskCount    aver.Assertion[TaskCountParams]
+    }
+
+    var TaskBoard = aver.NewDomain[TaskBoardDomain]("task-board")
+    ```
+  </TabItem>
+  <TabItem label="Rust">
+    ```rust
+    // domains/task_board.rs
+    aver_domain! {
+        name: "task-board",
+        struct TaskBoard {
+            create_task: Action<CreateTaskParams>,
+            move_task: Action<MoveTaskParams>,
+            task_in_status: Assertion<TaskInStatusParams>,
+            task_count: Assertion<TaskCountParams>,
+        }
+    }
+    ```
+  </TabItem>
+  <TabItem label="Kotlin">
+    ```kotlin
+    // domains/TaskBoard.kt
+    val taskBoard = domain("task-board") {
+        action<CreateTaskParams>("createTask")
+        action<MoveTaskParams>("moveTask")
+        assertion<TaskInStatusParams>("taskInStatus")
+        assertion<TaskCountParams>("taskCount")
+    }
+    ```
+  </TabItem>
+</Tabs>
+
+Four operations. Two actions (create, move), two assertions (check status, count tasks). No implementation details — just the vocabulary of what a task board *does*.
+
+This is the stable center. Tests and adapters will come and go; the domain vocabulary changes only when the business changes.
+
+---
+
+## Step 3: Write the tests first
+
+Tests use domain language only. They don't know whether the task board is an in-memory object, a REST API, or a React app:
+
+<Tabs>
+  <TabItem label="TypeScript">
+    ```typescript
+    // tests/task-board.spec.ts
+    import { suite } from '@averspec/core'
+    import { taskBoard } from '../domains/task-board.js'
+
+    const { test } = suite(taskBoard)
+
+    test('new tasks land in backlog', async ({ when, then }) => {
+      await when.createTask({ title: 'Fix login bug' })
+      await then.taskInStatus({ title: 'Fix login bug', status: 'backlog' })
+      await then.taskCount({ status: 'backlog', count: 1 })
+    })
+
+    test('move task through workflow', async ({ given, when, then }) => {
+      await given.createTask({ title: 'Fix login bug' })
+      await when.moveTask({ title: 'Fix login bug', status: 'in-progress' })
+      await then.taskInStatus({ title: 'Fix login bug', status: 'in-progress' })
+      await then.taskCount({ status: 'backlog', count: 0 })
+    })
+
+    test('multiple tasks in different statuses', async ({ given, when, then }) => {
+      await given.createTask({ title: 'Bug A' })
+      await given.createTask({ title: 'Bug B' })
+      await when.moveTask({ title: 'Bug A', status: 'in-progress' })
+      await then.taskCount({ status: 'backlog', count: 1 })
+      await then.taskCount({ status: 'in-progress', count: 1 })
+    })
+    ```
+  </TabItem>
+  <TabItem label="Python">
+    ```python
+    # tests/test_task_board.py
+    from averspec import suite
+    from domains.task_board import TaskBoard
+
+    s = suite(TaskBoard)
+
+    @s.test
+    def test_new_tasks_land_in_backlog(ctx):
+        ctx.when.create_task(title="Fix login bug")
+        ctx.then.task_in_status(title="Fix login bug", status="backlog")
+        ctx.then.task_count(status="backlog", count=1)
+
+    @s.test
+    def test_move_task_through_workflow(ctx):
+        ctx.given.create_task(title="Fix login bug")
+        ctx.when.move_task(title="Fix login bug", status="in-progress")
+        ctx.then.task_in_status(title="Fix login bug", status="in-progress")
+        ctx.then.task_count(status="backlog", count=0)
+
+    @s.test
+    def test_multiple_tasks_in_different_statuses(ctx):
+        ctx.given.create_task(title="Bug A")
+        ctx.given.create_task(title="Bug B")
+        ctx.when.move_task(title="Bug A", status="in-progress")
+        ctx.then.task_count(status="backlog", count=1)
+        ctx.then.task_count(status="in-progress", count=1)
+    ```
+  </TabItem>
+  <TabItem label="Ruby">
+    ```ruby
+    # spec/task_board_spec.rb
+    require "averspec"
+    require_relative "../domains/task_board"
+
+    s = Aver.suite(TaskBoard)
+
+    s.test "new tasks land in backlog" do |ctx|
+      ctx.when.create_task(title: "Fix login bug")
+      ctx.then.task_in_status(title: "Fix login bug", status: "backlog")
+      ctx.then.task_count(status: "backlog", count: 1)
+    end
+
+    s.test "move task through workflow" do |ctx|
+      ctx.given.create_task(title: "Fix login bug")
+      ctx.when.move_task(title: "Fix login bug", status: "in-progress")
+      ctx.then.task_in_status(title: "Fix login bug", status: "in-progress")
+      ctx.then.task_count(status: "backlog", count: 0)
+    end
+
+    s.test "multiple tasks in different statuses" do |ctx|
+      ctx.given.create_task(title: "Bug A")
+      ctx.given.create_task(title: "Bug B")
+      ctx.when.move_task(title: "Bug A", status: "in-progress")
+      ctx.then.task_count(status: "backlog", count: 1)
+      ctx.then.task_count(status: "in-progress", count: 1)
+    end
+    ```
+  </TabItem>
+  <TabItem label="Go">
+    ```go
+    // taskboard_test.go
+    s := aver.NewSuite(TaskBoard)
+
+    s.Run(t, "new tasks land in backlog", func(ctx aver.TestCtx) {
+        aver.When(ctx, TaskBoard.CreateTask, CreateTaskParams{Title: "Fix login bug"})
+        aver.Then(ctx, TaskBoard.TaskInStatus, TaskInStatusParams{Title: "Fix login bug", Status: "backlog"})
+        aver.Then(ctx, TaskBoard.TaskCount, TaskCountParams{Status: "backlog", Count: 1})
+    })
+
+    s.Run(t, "move task through workflow", func(ctx aver.TestCtx) {
+        aver.Given(ctx, TaskBoard.CreateTask, CreateTaskParams{Title: "Fix login bug"})
+        aver.When(ctx, TaskBoard.MoveTask, MoveTaskParams{Title: "Fix login bug", Status: "in-progress"})
+        aver.Then(ctx, TaskBoard.TaskInStatus, TaskInStatusParams{Title: "Fix login bug", Status: "in-progress"})
+        aver.Then(ctx, TaskBoard.TaskCount, TaskCountParams{Status: "backlog", Count: 0})
+    })
+    ```
+  </TabItem>
+  <TabItem label="Rust">
+    ```rust
+    // tests/task_board.rs
+    let s = suite(TaskBoard);
+
+    s.run("new tasks land in backlog", |m, ctx| {
+        ctx.when(&m.create_task, CreateTaskParams { title: "Fix login bug".into() });
+        ctx.then(&m.task_in_status, TaskInStatusParams { title: "Fix login bug".into(), status: "backlog".into() });
+        ctx.then(&m.task_count, TaskCountParams { status: "backlog".into(), count: 1 });
+    });
+
+    s.run("move task through workflow", |m, ctx| {
+        ctx.given(&m.create_task, CreateTaskParams { title: "Fix login bug".into() });
+        ctx.when(&m.move_task, MoveTaskParams { title: "Fix login bug".into(), status: "in-progress".into() });
+        ctx.then(&m.task_in_status, TaskInStatusParams { title: "Fix login bug".into(), status: "in-progress".into() });
+        ctx.then(&m.task_count, TaskCountParams { status: "backlog".into(), count: 0 });
+    });
+    ```
+  </TabItem>
+  <TabItem label="Kotlin">
+    ```kotlin
+    // TaskBoardTest.kt
+    val s = suite(taskBoard)
+
+    @Test fun `new tasks land in backlog`() = s.run { ctx ->
+        ctx.When(taskBoard.createTask, CreateTaskParams("Fix login bug"))
+        ctx.Then(taskBoard.taskInStatus, TaskInStatusParams("Fix login bug", "backlog"))
+        ctx.Then(taskBoard.taskCount, TaskCountParams("backlog", 1))
+    }
+
+    @Test fun `move task through workflow`() = s.run { ctx ->
+        ctx.Given(taskBoard.createTask, CreateTaskParams("Fix login bug"))
+        ctx.When(taskBoard.moveTask, MoveTaskParams("Fix login bug", "in-progress"))
+        ctx.Then(taskBoard.taskInStatus, TaskInStatusParams("Fix login bug", "in-progress"))
+        ctx.Then(taskBoard.taskCount, TaskCountParams("backlog", 0))
+    }
+    ```
+  </TabItem>
+</Tabs>
+
+Notice the narrative structure: `given` sets up context, `when` performs the action under test, `then` verifies the outcome. These are aliases — `given` and `when` both call actions, `then` calls assertions — but the narrative makes tests read like specifications.
+
+These tests won't pass yet. There's no adapter.
+
+---
+
+## Step 4: Build the unit adapter
+
+An adapter binds domain vocabulary to a real implementation. Start with the `unit` protocol, which calls your code's public interfaces directly:
+
+<Tabs>
+  <TabItem label="TypeScript">
+    ```typescript
+    // adapters/task-board.unit.ts
+    import { adapt, unit } from '@averspec/core'
+    import { expect } from 'vitest'
+    import { taskBoard } from '../domains/task-board.js'
+
+    interface Task {
+      title: string
+      status: string
+    }
+
+    export const unitAdapter = adapt(taskBoard, {
+      protocol: unit((): { tasks: Task[] } => ({ tasks: [] })),
+      actions: {
+        createTask: async (ctx, { title }) => {
+          ctx.tasks.push({ title, status: 'backlog' })
+        },
+        moveTask: async (ctx, { title, status }) => {
+          const task = ctx.tasks.find(t => t.title === title)
+          if (!task) throw new Error(`Task "${title}" not found`)
+          task.status = status
+        },
+      },
+      queries: {},
+      assertions: {
+        taskInStatus: async (ctx, { title, status }) => {
+          const task = ctx.tasks.find(t => t.title === title)
+          expect(task?.status).toBe(status)
+        },
+        taskCount: async (ctx, { status, count }) => {
+          const actual = ctx.tasks.filter(t => t.status === status).length
+          expect(actual).toBe(count)
+        },
+      },
+    })
+    ```
+  </TabItem>
+  <TabItem label="Python">
+    ```python
+    # adapters/task_board_unit.py
+    from averspec import implement, unit
+    from domains.task_board import TaskBoard
+
+    def make_context():
+        return {"tasks": []}
+
+    adapter = implement(TaskBoard, protocol=unit(make_context))
+
+    @adapter.handle(TaskBoard.create_task)
+    def create_task(ctx, title):
+        ctx["tasks"].append({"title": title, "status": "backlog"})
+
+    @adapter.handle(TaskBoard.move_task)
+    def move_task(ctx, title, status):
+        task = next(t for t in ctx["tasks"] if t["title"] == title)
+        task["status"] = status
+
+    @adapter.handle(TaskBoard.task_in_status)
+    def task_in_status(ctx, title, status):
+        task = next(t for t in ctx["tasks"] if t["title"] == title)
+        assert task["status"] == status
+
+    @adapter.handle(TaskBoard.task_count)
+    def task_count(ctx, status, count):
+        actual = len([t for t in ctx["tasks"] if t["status"] == status])
+        assert actual == count
+    ```
+  </TabItem>
+  <TabItem label="Ruby">
+    ```ruby
+    # adapters/task_board_unit.rb
+    class TaskBoardUnit < Aver::Adapter
+      domain TaskBoard
+      protocol :unit, -> { { tasks: [] } }
+
+      def create_task(ctx, title:)
+        ctx[:tasks] << { title: title, status: "backlog" }
+      end
+
+      def move_task(ctx, title:, status:)
+        task = ctx[:tasks].find { |t| t[:title] == title }
+        task[:status] = status
+      end
+
+      def task_in_status(ctx, title:, status:)
+        task = ctx[:tasks].find { |t| t[:title] == title }
+        expect(task[:status]).to eq(status)
+      end
+
+      def task_count(ctx, status:, count:)
+        actual = ctx[:tasks].count { |t| t[:status] == status }
+        expect(actual).to eq(count)
+      end
+    end
+    ```
+  </TabItem>
+  <TabItem label="Go">
+    ```go
+    // adapters/taskboard_unit.go
+    type Ctx struct {
+        Tasks []Task
+    }
+
+    unitAdapter := aver.Implement(TaskBoard, aver.Unit(func() *Ctx {
+        return &Ctx{Tasks: []Task{}}
+    }), func(h *aver.Handlers[*Ctx]) {
+        aver.OnAction(h, TaskBoard.CreateTask, func(ctx *Ctx, p CreateTaskParams) error {
+            ctx.Tasks = append(ctx.Tasks, Task{Title: p.Title, Status: "backlog"})
+            return nil
+        })
+        aver.OnAction(h, TaskBoard.MoveTask, func(ctx *Ctx, p MoveTaskParams) error {
+            for i := range ctx.Tasks {
+                if ctx.Tasks[i].Title == p.Title { ctx.Tasks[i].Status = p.Status }
+            }
+            return nil
+        })
+        aver.OnAssertion(h, TaskBoard.TaskInStatus, func(t *testing.T, ctx *Ctx, p TaskInStatusParams) {
+            for _, task := range ctx.Tasks {
+                if task.Title == p.Title { assert.Equal(t, p.Status, task.Status) }
+            }
+        })
+        aver.OnAssertion(h, TaskBoard.TaskCount, func(t *testing.T, ctx *Ctx, p TaskCountParams) {
+            count := 0
+            for _, task := range ctx.Tasks {
+                if task.Status == p.Status { count++ }
+            }
+            assert.Equal(t, p.Count, count)
+        })
+    })
+    ```
+  </TabItem>
+  <TabItem label="Rust">
+    ```rust
+    // adapters/task_board_unit.rs
+    let unit_adapter = AdapterBuilder::new(TaskBoard, unit(|| Ctx { tasks: vec![] }))
+        .on_action(&m.create_task, |ctx, p| {
+            ctx.tasks.push(Task { title: p.title.clone(), status: "backlog".into() });
+        })
+        .on_action(&m.move_task, |ctx, p| {
+            if let Some(task) = ctx.tasks.iter_mut().find(|t| t.title == p.title) {
+                task.status = p.status.clone();
+            }
+        })
+        .on_assertion(&m.task_in_status, |ctx, p| {
+            let task = ctx.tasks.iter().find(|t| t.title == p.title).unwrap();
+            assert_eq!(task.status, p.status);
+        })
+        .on_assertion(&m.task_count, |ctx, p| {
+            let count = ctx.tasks.iter().filter(|t| t.status == p.status).count();
+            assert_eq!(count, p.count);
+        })
+        .build();
+    ```
+  </TabItem>
+  <TabItem label="Kotlin">
+    ```kotlin
+    // adapters/TaskBoardUnit.kt
+    data class Ctx(val tasks: MutableList<Task> = mutableListOf())
+
+    val unitAdapter = implement(taskBoard, UnitProtocol { Ctx() }) {
+        onAction(taskBoard.createTask) { ctx, p ->
+            ctx.tasks.add(Task(p.title, "backlog"))
+        }
+        onAction(taskBoard.moveTask) { ctx, p ->
+            ctx.tasks.first { it.title == p.title }.status = p.status
+        }
+        onAssertion(taskBoard.taskInStatus) { ctx, p ->
+            assertEquals(p.status, ctx.tasks.first { it.title == p.title }.status)
+        }
+        onAssertion(taskBoard.taskCount) { ctx, p ->
+            assertEquals(p.count, ctx.tasks.count { it.status == p.status })
+        }
+    }
+    ```
+  </TabItem>
+</Tabs>
+
+The `unit()` function creates a fresh context for each test — here, an object with an empty `tasks` array. Each handler receives that context as its first argument.
+
+The type system enforces completeness: miss a handler and you get an error. Every domain operation must be implemented.
+
+Register the adapter. See your language's [Getting Started](/guides/getting-started/) guide for equivalent configuration.
+
+```typescript
+// aver.config.ts
+import { defineConfig } from '@averspec/core'
+import { unitAdapter } from './adapters/task-board.unit.js'
+
+export default defineConfig({
+  adapters: [unitAdapter],
+})
+```
+
+Run the tests:
+
+```bash
+npx aver run
+```
+
+```
+ ✓ new tasks land in backlog [unit]              1ms
+ ✓ move task through workflow [unit]             0ms
+ ✓ multiple tasks in different statuses [unit]   0ms
+```
+
+Three tests, all passing against the unit adapter.
+
+---
+
+## Step 5: Add an HTTP adapter
+
+Now suppose you're building an Express API for the task board. Here's a minimal server:
+
+```typescript
+// src/server.ts
+import express from 'express'
+
+const app = express()
+app.use(express.json())
+
+interface Task { title: string; status: string }
+const tasks: Task[] = []
+
+app.post('/tasks', (req, res) => {
+  tasks.push({ title: req.body.title, status: 'backlog' })
+  res.sendStatus(201)
+})
+
+app.patch('/tasks/:title', (req, res) => {
+  const task = tasks.find(t => t.title === req.params.title)
+  if (!task) return res.sendStatus(404)
+  task.status = req.body.status
+  res.sendStatus(200)
+})
+
+app.get('/tasks', (req, res) => {
+  const status = req.query.status as string | undefined
+  const filtered = status ? tasks.filter(t => t.status === status) : tasks
+  res.json(filtered)
+})
+
+export function createApp() {
+  const appTasks: Task[] = []
+  const app = express()
+  app.use(express.json())
+
+  app.post('/tasks', (req, res) => {
+    appTasks.push({ title: req.body.title, status: 'backlog' })
+    res.sendStatus(201)
+  })
+
+  app.patch('/tasks/:title', (req, res) => {
+    const task = appTasks.find(t => t.title === req.params.title)
+    if (!task) return res.sendStatus(404)
+    task.status = req.body.status
+    res.sendStatus(200)
+  })
+
+  app.get('/tasks', (req, res) => {
+    const status = req.query.status as string | undefined
+    const filtered = status ? appTasks.filter(t => t.status === status) : appTasks
+    res.json(filtered)
+  })
+
+  return app
+}
+```
+
+Write an HTTP adapter for the same domain:
+
+```typescript
+// adapters/task-board.http.ts
+import { adapt } from '@averspec/core'
+import { expect } from 'vitest'
+import { taskBoard } from '../domains/task-board.js'
+import { createApp } from '../src/server.js'
+import type { Protocol } from '@averspec/core'
+
+interface HttpContext {
+  baseUrl: string
+  server: any
+}
+
+const protocol: Protocol<HttpContext> = {
+  name: 'http',
+  async setup() {
+    const app = createApp()
+    const server = app.listen(0)
+    const port = (server.address() as any).port
+    return { baseUrl: `http://localhost:${port}`, server }
+  },
+  async teardown(ctx) {
+    ctx.server.close()
+  },
+}
+
+export const httpAdapter = adapt(taskBoard, {
+  protocol,
+  actions: {
+    createTask: async (ctx, { title }) => {
+      await fetch(`${ctx.baseUrl}/tasks`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title }),
+      })
+    },
+    moveTask: async (ctx, { title, status }) => {
+      await fetch(`${ctx.baseUrl}/tasks/${encodeURIComponent(title)}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status }),
+      })
+    },
+  },
+  queries: {},
+  assertions: {
+    taskInStatus: async (ctx, { title, status }) => {
+      const res = await fetch(`${ctx.baseUrl}/tasks`)
+      const tasks = await res.json() as Array<{ title: string; status: string }>
+      const task = tasks.find(t => t.title === title)
+      expect(task?.status).toBe(status)
+    },
+    taskCount: async (ctx, { status, count }) => {
+      const res = await fetch(`${ctx.baseUrl}/tasks?status=${encodeURIComponent(status)}`)
+      const tasks = await res.json() as Array<{ title: string; status: string }>
+      expect(tasks.length).toBe(count)
+    },
+  },
+})
+```
+
+Register both adapters:
+
+```typescript
+// aver.config.ts
+import { defineConfig } from '@averspec/core'
+import { unitAdapter } from './adapters/task-board.unit.js'
+import { httpAdapter } from './adapters/task-board.http.js'
+
+export default defineConfig({
+  adapters: [unitAdapter, httpAdapter],
+})
+```
+
+Run the tests — **the same tests, no changes**:
+
+```bash
+npx aver run
+```
+
+```
+ ✓ new tasks land in backlog [unit]                1ms
+ ✓ new tasks land in backlog [http]               18ms
+ ✓ move task through workflow [unit]               0ms
+ ✓ move task through workflow [http]              12ms
+ ✓ multiple tasks in different statuses [unit]     0ms
+ ✓ multiple tasks in different statuses [http]    15ms
+```
+
+Three tests. Two adapters. Six runs. The test code didn't change — only the config did.
+
+If the unit adapter and HTTP adapter ever disagree on a behavior, that disagreement surfaces a real bug. The unit adapter says what the logic should do. The HTTP adapter says what the API actually does. When they match, you have confidence at two levels.
+
+---
+
+## What you built
+
+```
+domains/task-board.ts           # Domain — what a task board does
+adapters/task-board.unit.ts     # Unit adapter — in-memory
+adapters/task-board.http.ts     # HTTP adapter — Express API
+tests/task-board.spec.ts        # Tests — domain language only
+aver.config.ts                  # Config — registers adapters
+```
+
+The domain vocabulary is the stable center. Tests compose vocabulary into scenarios. Adapters are interchangeable. When the UI exists, add a Playwright adapter — the tests still don't change.
+
+## Next steps
+
+- [Tutorial: Legacy Code](/tutorial/) — start from untested code with characterization tests
+- [Architecture](/architecture/) — how the three-layer model works and why
+- [Multi-Adapter Testing](/guides/multi-adapter/) — adding Playwright, filtering by adapter
+- [Telemetry Tutorial](/tutorial-telemetry/) — add observability verification
+- [Example Mapping](/guides/example-mapping/) — discover domain vocabulary through structured conversation

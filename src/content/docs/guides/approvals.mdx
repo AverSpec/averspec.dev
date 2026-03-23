@@ -2,6 +2,8 @@
 title: "Approval Testing"
 ---
 
+import { Tabs, TabItem } from '@astrojs/starlight/components';
+
 ## Overview
 
 `@averspec/approvals` provides two ways to lock in behavior as a baseline:
@@ -12,15 +14,75 @@ title: "Approval Testing"
 
 Both follow the same cycle: baseline → compare → diff → approve.
 
-```ts
-import { approve } from '@averspec/approvals'
+<Tabs>
+  <TabItem label="TypeScript">
+    ```typescript
+    import { approve } from '@averspec/approvals'
 
-// Structural: serialize and diff a data value
-await approve(taskList, { name: 'tasks' })
+    // Structural: serialize and diff a data value
+    await approve(taskList, { name: 'tasks' })
 
-// Visual: screenshot and pixel-diff the current screen
-await approve.visual('board-with-task')
-```
+    // Visual: screenshot and pixel-diff the current screen
+    await approve.visual('board-with-task')
+    ```
+  </TabItem>
+  <TabItem label="Python">
+    ```python
+    from averspec.approvals import approve
+
+    # Structural: serialize and diff a data value
+    approve(task_list, name="tasks")
+
+    # Visual: screenshot and pixel-diff the current screen
+    approve.visual("board-with-task")
+    ```
+  </TabItem>
+  <TabItem label="Ruby">
+    ```ruby
+    require "averspec/approvals"
+
+    # Structural: serialize and diff a data value
+    Aver.approve(task_list, name: "tasks")
+
+    # Visual: screenshot and pixel-diff the current screen
+    Aver.approve_visual("board-with-task")
+    ```
+  </TabItem>
+  <TabItem label="Go">
+    ```go
+    import "github.com/averspec/aver-go/approvals"
+
+    // Structural: serialize and diff a data value
+    approvals.Approve(taskList, approvals.Opts{Name: "tasks"})
+
+    // Visual: screenshot and pixel-diff the current screen
+    approvals.Visual("board-with-task")
+    ```
+  </TabItem>
+  <TabItem label="Rust">
+    ```rust
+    use averspec::approvals::{approve, approve_visual};
+
+    // Structural: serialize and diff a data value
+    approve("tasks", &task_list, &[]);
+
+    // Visual: screenshot and pixel-diff the current screen
+    approve_visual("board-with-task");
+    ```
+  </TabItem>
+  <TabItem label="Kotlin">
+    ```kotlin
+    import dev.averspec.approvals.approve
+    import dev.averspec.approvals.approveVisual
+
+    // Structural: serialize and diff a data value
+    approve(taskList, "tasks")
+
+    // Visual: screenshot and pixel-diff the current screen
+    approveVisual("board-with-task")
+    ```
+  </TabItem>
+</Tabs>
 
 ## `characterize()` vs `approve()`
 
@@ -42,7 +104,7 @@ Visual approvals use the `screenshotter` protocol extension. Protocols that can 
 
 ### Setup
 
-```ts
+```typescript
 import { playwright } from '@averspec/protocol-playwright'
 
 const proto = playwright({
@@ -55,13 +117,62 @@ const proto = playwright({
 
 ### Usage
 
-```ts
-// Full page screenshot
-await approve.visual('board-state')
+<Tabs>
+  <TabItem label="TypeScript">
+    ```typescript
+    // Full page screenshot
+    await approve.visual('board-state')
 
-// Scoped to a named region
-await approve.visual({ name: 'backlog', region: 'backlog' })
-```
+    // Scoped to a named region
+    await approve.visual({ name: 'backlog', region: 'backlog' })
+    ```
+  </TabItem>
+  <TabItem label="Python">
+    ```python
+    # Full page screenshot
+    approve.visual("board-state")
+
+    # Scoped to a named region
+    approve.visual(name="backlog", region="backlog")
+    ```
+  </TabItem>
+  <TabItem label="Ruby">
+    ```ruby
+    # Full page screenshot
+    Aver.approve_visual("board-state")
+
+    # Scoped to a named region
+    Aver.approve_visual(name: "backlog", region: "backlog")
+    ```
+  </TabItem>
+  <TabItem label="Go">
+    ```go
+    // Full page screenshot
+    approvals.Visual("board-state")
+
+    // Scoped to a named region
+    approvals.Visual("backlog", approvals.VisualOpts{Region: "backlog"})
+    ```
+  </TabItem>
+  <TabItem label="Rust">
+    ```rust
+    // Full page screenshot
+    approve_visual("board-state");
+
+    // Scoped to a named region
+    approve_visual_with("backlog", VisualOpts { region: "backlog" });
+    ```
+  </TabItem>
+  <TabItem label="Kotlin">
+    ```kotlin
+    // Full page screenshot
+    approveVisual("board-state")
+
+    // Scoped to a named region
+    approveVisual("backlog", region = "backlog")
+    ```
+  </TabItem>
+</Tabs>
 
 On protocols without a screenshotter (unit, http), `approve.visual()` throws an error. Only use it with visual protocols like Playwright.
 
