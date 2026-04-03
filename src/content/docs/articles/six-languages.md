@@ -1,6 +1,6 @@
 ---
 title: "Six Languages, No Loop"
-draft: true
+draft: false
 ---
 
 The Ruby port had 331 passing tests and I rewrote the entire API before it shipped. The code worked. I didn't like how it felt. Block DSL to class inheritance. Every public surface changed. The behavioral spec validated the result in seconds. 327 tests passed. I hadn't looked at the implementation.
@@ -55,11 +55,15 @@ The TypeScript original has one DX issue that none of the ports share: every tes
 
 ## What carries
 
-The behavioral spec is the load-bearing piece. If your tests describe what the system does without mentioning how, an agent can build against them in any language and verify its own changes. If your tests are coupled to your runtime, every change is a gamble.
+The behavioral spec is the load-bearing piece. Not just for testing — for the entire development model. If your tests describe what the system does without mentioning how, an agent can build against them in any language and verify its own changes. If your tests are coupled to your runtime, every change is a gamble. The spec is the control surface. The human writes the what. The agents handle the how.
 
 The context window replaces the retry loop. A conversation that carries the full implementation, the design decisions, and the mistakes from every previous attempt produces code that accounts for lessons already learned.
 
+A reasonable objection: if the agent can see the spec, can't it just write code that passes without implementing correct behavior? StrongDM's software factory [discovered this the hard way](https://factory.strongdm.ai/principles) — agents wrote `return true`. Their solution was to hide test scenarios from the generating agent. Aver's architecture takes a different path. The domain requires a typed handler for every marker — actions, queries, and assertions. Queries return data that downstream assertions check. An adapter that fakes `createTask` will fail `tasksByStatus`, which will fail `taskInStatus`. The operations are causally chained across multiple execution paths: the same spec runs against an in-memory adapter, an HTTP adapter hitting a real server, and a browser adapter driving real UI. Gaming all three simultaneously isn't impossible, but it's structurally harder than passing a boolean. I still reviewed API feel by hand. A few things needed a second pass. No hand-built software ships without iteration either. But the structural constraints meant the iteration was about polish, not correctness.
+
 The combination prevents the wall. But it also enables something more interesting than just "working code fast." It enables *good* code iteratively. The spec gives you the confidence to throw away the first draft. The context gives the agent enough judgment to make the second draft better. The polish cycle — audit, fix, verify — is where the quality actually lives. Speed gets you to the first draft. The spec is what lets you keep improving it.
+
+Manufacturing has a concept called the dark factory — facilities where robots work in unlit buildings because robots don't need to see. The [emerging equivalent in software](https://www.danshapiro.com/blog/2026/01/the-five-levels-from-spicy-autocomplete-to-the-software-factory/) is spec-driven development: humans design the behavioral contract, agents produce the implementation, validation is structural and automatic. The question isn't whether this is coming. It's what the spec layer looks like. I think it looks like a domain with typed markers, adapters that prove completeness, and contracts that verify all the way to production telemetry. The six ports aren't the point. The spec that made them possible is.
 
 Every AI-assisted refactor is either verified against a spec or verified by hope. The first compounds. The second calcifies.
 

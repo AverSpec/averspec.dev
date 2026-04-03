@@ -1,6 +1,6 @@
 ---
 title: "Aver"
-description: Domain-driven acceptance testing for TypeScript.
+description: Domain-driven acceptance testing. One spec, every language, every layer.
 tableOfContents: false
 hero:
   tagline: Know your system works.
@@ -333,6 +333,21 @@ Or follow a tutorial: [legacy code](/tutorial/), [greenfield](/tutorial-greenfie
 - Trivial CRUD with no business rules — if the vocabulary mirrors the schema, there's nothing to abstract
 
 [Read more about when to use Aver →](/guides/troubleshooting/)
+
+---
+
+## Implementations
+
+| Language | Package | Install |
+|----------|---------|---------|
+| TypeScript | [@averspec/core](https://github.com/averspec/aver) | `npm install --save-dev @averspec/core` |
+| Python | [averspec](https://github.com/averspec/aver-py) | `pip install averspec` |
+| Ruby | [averspec](https://github.com/averspec/aver-rb) | `gem install averspec` |
+| Go | [aver-go](https://github.com/averspec/aver-go) | `go get github.com/averspec/aver-go` |
+| Rust | [averspec](https://github.com/averspec/aver-rs) | `cargo add averspec --dev` |
+| Kotlin | [averspec](https://github.com/averspec/aver-jvm) | `testImplementation("dev.averspec:averspec:0.1.0")` |
+
+All six implementations share the same behavioral contract model: domains, typed markers, multi-adapter execution, and cross-language [telemetry contract verification](/guides/telemetry/). [Read about how they were built →](/articles/six-languages/)
 
 ---
 

@@ -78,7 +78,7 @@ export default defineConfig({
 						{ label: 'Your Adapter Is a Design Review', slug: 'articles/adapter-driven-design' },
 						{ label: "The Foundation Nobody's Building", slug: 'articles/the-foundation' },
 						{ label: 'Stop Reviewing AI Code', slug: 'articles/stop-reviewing' },
-						// { label: '6 Languages in 48 Hours', slug: 'articles/six-languages' },
+						{ label: 'Six Languages, No Loop', slug: 'articles/six-languages' },
 					],
 				},
 			],
