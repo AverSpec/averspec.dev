@@ -21,7 +21,9 @@ import { Tabs, TabItem } from '@astrojs/starlight/components';
   </TabItem>
   <TabItem label="Ruby">
     ```bash
-    gem install averspec
+    # RubyGems publish coming soon — install from source:
+    git clone https://github.com/averspec/aver-rb.git
+    cd aver-rb && bundle install
     ```
     Aver uses [RSpec](https://rspec.info) as its test runner.
   </TabItem>
@@ -33,14 +35,18 @@ import { Tabs, TabItem } from '@astrojs/starlight/components';
   </TabItem>
   <TabItem label="Rust">
     ```bash
-    cargo add averspec --dev
+    # crates.io publish coming soon — install from git:
+    # Cargo.toml: averspec = { git = "https://github.com/averspec/aver-rs" }
     ```
     Aver uses Rust's built-in test framework.
   </TabItem>
   <TabItem label="Kotlin">
     ```kotlin
-    // build.gradle.kts
-    testImplementation("dev.averspec:aver-jvm:0.1.0")
+    // Maven Central publish coming soon — build from source:
+    // git clone https://github.com/averspec/aver-jvm.git
+    // ./gradlew publishToMavenLocal
+    // build.gradle.kts:
+    testImplementation("dev.averspec:averspec:0.1.0")
     ```
     Aver uses JUnit 5 as its test runner.
   </TabItem>
@@ -260,14 +266,14 @@ aver.config.*     # Wiring — registers adapters
 
 | When you need... | Add... |
 |:-----------------|:-------|
-| A safety net for existing code | `@averspec/approvals` — approval testing |
-| API-level testing | `@averspec/protocol-http` — HTTP adapter |
-| Browser testing | `@averspec/protocol-playwright` — Playwright adapter |
+| A safety net for existing code | Approval testing — captures current behavior as a baseline |
+| API-level testing | HTTP protocol adapter — runs tests against a real server |
+| Browser testing | Playwright protocol adapter — drives real browser UI |
 | Telemetry verification | Telemetry declarations on domain markers. See [Telemetry Tutorial](/tutorial-telemetry/) |
-| AI-assisted workflow | `@averspec/agent-plugin` — workflow skills + scenario pipeline. See [AI-Assisted](/guides/ai-assisted/) |
-| CI integration | No extra packages — `npx aver run` in your pipeline. See [CI Integration](/guides/ci-integration/) |
+| AI-assisted workflow | Agent plugin (TypeScript only) — workflow skills + scenario pipeline. See [AI-Assisted](/guides/ai-assisted/) |
+| CI integration | No extra packages — `aver run` in your pipeline. See [CI Integration](/guides/ci-integration/) |
 
-You don't need everything on day one. Start with `@averspec/core` and a unit adapter. Add packages as your needs grow.
+You don't need everything on day one. Start with the core package and a unit adapter. Add protocols as your needs grow.
 
 ## Next steps
 
