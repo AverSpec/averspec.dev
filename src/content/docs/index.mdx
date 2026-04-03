@@ -292,9 +292,10 @@ Working on business logic? `aver run --adapter unit`. Touching the API layer? `-
   </TabItem>
   <TabItem label="Ruby">
     ```bash
-    gem install averspec
-    aver init
-    aver run
+    # RubyGems publish coming soon — install from source:
+    git clone https://github.com/averspec/aver-rb.git
+    cd aver-rb && bundle install
+    bundle exec aver run
     ```
   </TabItem>
   <TabItem label="Go">
@@ -306,15 +307,16 @@ Working on business logic? `aver run --adapter unit`. Touching the API layer? `-
   </TabItem>
   <TabItem label="Rust">
     ```bash
-    cargo add averspec --dev
-    # Define domain, adapter, and test in Rust files
+    # crates.io publish coming soon — install from git:
+    # Cargo.toml: averspec = { git = "https://github.com/averspec/aver-rs" }
     cargo test
     ```
   </TabItem>
   <TabItem label="Kotlin">
     ```kotlin
+    // Maven Central publish coming soon — use JitPack or build from source:
     // build.gradle.kts
-    testImplementation("dev.averspec:aver-jvm:0.1.0")
+    testImplementation("dev.averspec:averspec:0.1.0")
     ```
     ```bash
     ./gradlew test
@@ -342,10 +344,10 @@ Or follow a tutorial: [legacy code](/tutorial/), [greenfield](/tutorial-greenfie
 |----------|---------|---------|
 | TypeScript | [@averspec/core](https://github.com/averspec/aver) | `npm install --save-dev @averspec/core` |
 | Python | [averspec](https://github.com/averspec/aver-py) | `pip install averspec` |
-| Ruby | [averspec](https://github.com/averspec/aver-rb) | `gem install averspec` |
 | Go | [aver-go](https://github.com/averspec/aver-go) | `go get github.com/averspec/aver-go` |
-| Rust | [averspec](https://github.com/averspec/aver-rs) | `cargo add averspec --dev` |
-| Kotlin | [averspec](https://github.com/averspec/aver-jvm) | `testImplementation("dev.averspec:averspec:0.1.0")` |
+| Ruby | [averspec](https://github.com/averspec/aver-rb) | *Source only — [RubyGems](https://rubygems.org) coming soon* |
+| Rust | [averspec](https://github.com/averspec/aver-rs) | *Source only — [crates.io](https://crates.io) coming soon* |
+| Kotlin | [averspec](https://github.com/averspec/aver-jvm) | *Source only — [Maven Central](https://central.sonatype.com) coming soon* |
 
 All six implementations share the same behavioral contract model: domains, typed markers, multi-adapter execution, and cross-language [telemetry contract verification](/guides/telemetry/). [Read about how they were built →](/articles/six-languages/)
 
