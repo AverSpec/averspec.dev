@@ -65,6 +65,6 @@ Every AI-assisted refactor is either verified against a spec or verified by hope
 
 ---
 
-~2,000 tests. Six languages. One session. [$100](https://github.com/averspec).
+~2,000 tests. Six languages. One session.
 
 [Aver](https://github.com/averspec/aver) · [Python](https://github.com/averspec/aver-py) · [Ruby](https://github.com/averspec/aver-rb) · [Go](https://github.com/averspec/aver-go) · [Rust](https://github.com/averspec/aver-rs) · [Kotlin](https://github.com/averspec/aver-jvm)
